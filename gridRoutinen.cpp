@@ -4,14 +4,16 @@
 #include <cmath>
 #include "parameter.h"
 #include <iostream>
+#include <fftw3.h>
+#include "signaturen.h"
 
 using std::cout; using std::endl;
 
 extern const int N,densGrid_Zellen;
 extern const double L,densGrid_Breite;
 
-// berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Nearest Grid Point.
-void gridDensity_NGP(double** rho, double** r){
+// berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho, verwendet Index-Wrapping. Nearest Grid Point.
+void gridDensity_NGP(fftw_complex* rho, double** r){
 
 	int i;
 	double x,y;
@@ -38,13 +40,14 @@ void gridDensity_NGP(double** rho, double** r){
 		l = (int) (y/densGrid_Breite);
 
 		//kompletten Anteil auf rho[k][l] addieren
-		rho[k][l] += 1.0;
+		//rho[k][l] += 1.0;
+		rho[iw(k,l)][0] += 1.0;
 	}//for i
 
 }//void gridDens_NGP
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Cloud-In-Cell.
-void gridDensity_CIC(double** rho, double** r){
+void gridDensity_CIC(fftw_complex* rho, double** r){
 
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -57,7 +60,7 @@ void gridDensity_CIC(double** rho, double** r){
 	//rho auf Null setzen
 	for(k=0; k<densGrid_Zellen; k++)
 		for(l=0; l<densGrid_Zellen; l++)
-			rho[k][l] = 0.0;
+			rho[iw(k,l)][0] = 0.0;
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
@@ -104,17 +107,19 @@ void gridDensity_CIC(double** rho, double** r){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-		rho[kl][ll] += xlinks*ylinks;
-		rho[kl][l]  += xlinks*yexakt;
-		rho[kl][lr] += xlinks*yrechts;
+		//rho[kl][ll] += xlinks*ylinks;
+		rho[iw(kl,ll)][0] += xlinks*ylinks;
+		rho[iw(kl,l )][0] += xlinks*yexakt;
+		rho[iw(kl,lr)][0] += xlinks*yrechts;
+		
+		rho[iw(k ,ll)][0] += xexakt*ylinks;
+		rho[iw(k ,l )][0] += xexakt*yexakt;
+		rho[iw(k ,lr)][0] += xexakt*yrechts;
 
-		rho[k ][ll] += xexakt*ylinks;
-		rho[k ][l]  += xexakt*yexakt;
-		rho[k ][lr] += xexakt*yrechts;
+		rho[iw(kr,ll)][0] += xrechts*ylinks;
+		rho[iw(kr,l )][0] += xrechts*yexakt;
+		rho[iw(kr,lr)][0] += xrechts*yrechts;
 
-		rho[kr][ll] += xrechts*ylinks;
-		rho[kr][l]  += xrechts*yexakt;
-		rho[kr][lr] += xrechts*yrechts;
 
 		/* Test
 			cout << "Teilchen "<<i<<" am Ort ("<<x<<","<<y<<"): x-Aufteilung ("<<xlinks<<" "<<xexakt<<" "<<xrechts<<"), y-Aufteilung ("<<ylinks<<" "<<yexakt<<" "<<yrechts<<")." << endl;
@@ -127,7 +132,7 @@ void gridDensity_CIC(double** rho, double** r){
 }//void gridDens_CIC
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Triangle-Shaped Cloud.
-void gridDensity_TSC(double** rho, double** r){
+void gridDensity_TSC(fftw_complex* rho, double** r){
 	
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -141,7 +146,7 @@ void gridDensity_TSC(double** rho, double** r){
 	//rho auf Null setzen
 	for(k=0; k<densGrid_Zellen; k++)
 		for(l=0; l<densGrid_Zellen; l++)
-			rho[k][l] = 0.0;
+			rho[iw(k,l)][0] = 0.0;
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
@@ -183,18 +188,18 @@ void gridDensity_TSC(double** rho, double** r){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-		rho[kl][ll] += xlinks*ylinks;
-		rho[kl][l]  += xlinks*yexakt;
-		rho[kl][lr] += xlinks*yrechts;
+//		rho[kl][ll] += xlinks*ylinks;
+		rho[iw(kl,ll)][0] += xlinks*ylinks;
+		rho[iw(kl,l )][0] += xlinks*yexakt;
+		rho[iw(kl,lr)][0] += xlinks*yrechts;
 
-		rho[k ][ll] += xexakt*ylinks;
-		rho[k ][l]  += xexakt*yexakt;
-		rho[k ][lr] += xexakt*yrechts;
+		rho[iw(k ,ll)][0] += xexakt*ylinks;
+		rho[iw(k ,l )][0] += xexakt*yexakt;
+		rho[iw(k ,lr)][0] += xexakt*yrechts;
 
-		rho[kr][ll] += xrechts*ylinks;
-		rho[kr][l]  += xrechts*yexakt;
-		rho[kr][lr] += xrechts*yrechts;
-
+		rho[iw(kr,ll)][0] += xrechts*ylinks;
+		rho[iw(kr,l )][0] += xrechts*yexakt;
+		rho[iw(kr,lr)][0] += xrechts*yrechts;
 		/* Test
 			cout << "Teilchen "<<i<<" am Ort ("<<x<<","<<y<<"): x-Aufteilung ("<<xlinks<<" "<<xexakt<<" "<<xrechts<<"), y-Aufteilung ("<<ylinks<<" "<<yexakt<<" "<<yrechts<<")." << endl;
 			cout << "Beteiligte Zellen: k=("<<kl<<" "<<k<<" "<<kr<<"), l=("<<ll<<" "<<l<<" "<<lr<<")." << endl << endl;
