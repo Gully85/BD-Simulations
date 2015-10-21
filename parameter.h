@@ -8,13 +8,13 @@
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N = 1;
+const int N = 2;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 30.0;
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
-const int densGrid_Schema = 1; //vorher "density_gridding_schema"
+const int densGrid_Schema = 2; //vorher "density_gridding_schema"
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt.
 const int FFT_samples = 256;
@@ -23,7 +23,7 @@ const int FFT_samples = 256;
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 40.0;
+const double lambda_kapillar = 2.0;
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

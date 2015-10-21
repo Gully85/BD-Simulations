@@ -5,7 +5,7 @@
 #include "gridRoutinen.cpp"
 #include "signaturen.h"
 #include <fftw3.h>
-
+#include "dynamik_methoden.cpp"
 
 using std::cout; using std::endl; using std::flush;
 
@@ -28,13 +28,10 @@ extern const double lambda_kapillar;
 
 // Teilchenpositionen, x- und y-Koordinate. r[i][0] ist die x-Koordinate der Position von Teilchen i.
 double** r = NULL;
-// Dichte auf Gitter im x-Raum. Muss den FFTW-Typ haben, weil dieses Feld fouriertransformiert wird.
-fftw_complex* rhox = NULL;
-// Dichte auf Gitter im k-Raum. Muss den FFTW-Typ haben, weil dieses Feld fouriertransformiert wird.
-fftw_complex* rhok = NULL;
 
-// Greensfunktion, gleiche Indizes wie rhok nach der Fouriertrafo hat. G ist reell.
-double* G = NULL;
+// Kapillarkraefte, die gerade auf Teilchen wirken. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** Fkap = NULL;
+
 
 int main(){
 
@@ -50,105 +47,33 @@ r = new double*[N];
 for(i=0; i<N; i++)
 	r[i] = new double[2];
 
-// Dichte auf Gitter im x-Raum. Muss den FFTW-Typ haben, weil dieses Feld fouriertransformiert wird.
-rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * densGrid_Zellen*densGrid_Zellen);
-// Dichte auf Gitter im k-Raum. Muss den FFTW-Typ haben, weil dieses Feld fouriertransformiert wird.
-rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * densGrid_Zellen*densGrid_Zellen);
-
-// es muss Index-Wrapping gemacht werden, mit der Funktion int iw(int i, int j)
-// rhox[iw(a,b)][0] ist die Anzahl der Teilchen in der Zelle, deren Mittelpunkt bei x=(a+0.5)*densGrid_Breite, y=(b+0.5)*densGrid_Breite liegt. densGrid_Breite ist also das, was im fftw-Test dx war.
-// rhox[.......][1] ist der Imaginaerteil, also Null.
-
-// rhok[iw(c,d)][0] ist die Fouriertransformierte von rho, an der Stelle qx=dq*((c+(int)(0.5*densGrid_Zellen))%densGrid_Zellen - 0.5*densGrid_Zellen), qy entsprechend.
-// rhok[.......][1] der Imaginaerteil davon, muss nicht Null sein.
-
-
-//Greensfunktion, nur Realteil noetig
-G = new double[densGrid_Zellen*densGrid_Zellen];
-
-
-
-///plane FFTs
-fftw_plan ft_voran = fftw_plan_dft_2d(densGrid_Zellen, densGrid_Zellen, rhox, rhok, FFTW_FORWARD, FFTW_MEASURE);
-fftw_plan ft_rueck = fftw_plan_dft_2d(densGrid_Zellen, densGrid_Zellen, rhok, rhox, FFTW_BACKWARD,FFTW_MEASURE);
+// Kapillarkraefte, die gerade auf Teilchen wirken. Erster Index TeilchenNr, zweiter Index Raumrichtung
+Fkap = new double*[N];
+for(i=0; i<N; i++)
+	Fkap[i] = new double[2];
 
 
 ///setze Teilchen auf Positionen
 
-//* Test: Zunaechst nur ein Teilchen, an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle
-r[0][0] = 0.5*(L + densGrid_Breite);
-r[0][1] = 0.5*(L + densGrid_Breite);
+//* Test: Zunaechst nur zwei Teilchen, eins an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle. Das andere bei x=L/2 + 2.5*densGrid_Breite, y wie vorher. Damit sind die beiden Teilchen genau  zwei Zellen voneinander entfernt.
+r[0][0] = 0.5*L + 0.5*densGrid_Breite;
+r[0][1] = 0.5*L + 0.5*densGrid_Breite;
+
+r[1][0] = 0.5*L + 2.5*densGrid_Breite;
+r[1][1] = r[0][1];
 // */
 
 
+// bereite Kraftberechnung vor, dh plane Fouriertrafos und reserviere Speicher
+kapkraefte_init();
 
+//berechne Kapillarkraefte schreibe sie in Fkap
+berechne_kapkraefte(r, Fkap);
 
-switch(densGrid_Schema){
-	case 0: gridDensity_NGP(rhox, r); break;
-	case 1: gridDensity_CIC(rhox, r); break;
-	case 2: gridDensity_TSC(rhox, r); break;
-	default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
-		 return 1;
-}//switch
-
-
-//* Test: Gebe Feld rhox aus
-out = fopen("test.txt", "w");
-fprintf(out, "#Format: x TAB y TAB rho");
-for(j=0; j<densGrid_Zellen; j++){
-	for(k=0; k<densGrid_Zellen; k++){
-		fprintf(out, "%g \t %g \t %g \n", (j+0.5)*densGrid_Breite, (k+0.5)*densGrid_Breite, rhox[iw(j,k)][0]);
-	}//for k
-	fprintf(out, "\n");
-}//for j
-// */
-
-
-//transformiere rho in den k-Raum. Danach steht die Dichte in rhok[.][0] und rhok[.][1], real- und Imaginaerteil, mit alternierenden Vorzeichen. Bedenke beim Index-Wrapping die Verschiebung um N/2
-fftw_execute(ft_voran);
-
-//erzeuge Greensfunktion G(qx, qy) = -1/(sin2(qx dx)/dx2 + sin2(qy dy)/dy2 + 1/lambda2)
-//G ist reell. Erzeuge Feld G[] mit demselben Index-Wrapping und Verschiebung
-double qx, qy;
-double s2x, s2y;
-for(j=0; j<densGrid_Zellen; j++){
-	qx = dq*((j+(int)(0.5*densGrid_Zellen))%densGrid_Zellen - 0.5*densGrid_Zellen);
-	s2x = sin(0.5*qx * densGrid_Breite)*sin(0.5*qx * densGrid_Breite)/(densGrid_Breite*densGrid_Breite);
-	for(k=0; k<densGrid_Zellen; k++){
-		qy = dq*((k+(int)(0.5*densGrid_Zellen))%densGrid_Zellen - 0.5*densGrid_Zellen);
-		s2y = sin(0.5*qy * densGrid_Breite)*sin(0.5*qy * densGrid_Breite)/(densGrid_Breite*densGrid_Breite);
-		
-		G[iw(j,k)] = -1.0/(s2x + s2y + 1.0/(lambda_kapillar*lambda_kapillar));
-	}//for k
-}//for j
-
-
-//multipliziere fouriertransformierte Dichte mit Greensfunktion. Keine Doppelschleife noetig, weil rhok und G dasselbe Index-Wrapping verwenden.
-for(j=0; j<densGrid_Zellen*densGrid_Zellen; j++){
-	rhok[j][0] *= G[j];
-	rhok[j][1] *= G[j];
-}//for j bis densGrid_Zellen^2
-
-
-// transformiere rhok in den x-Raum zurueck
-fftw_execute(ft_rueck);
-for(j=0; j<densGrid_Zellen*densGrid_Zellen; j++){
-	rhox[j][0] /= densGrid_Zellen*densGrid_Zellen;
-}//for j
-
-//* Test: Gebe Feld rhox aus
-out = fopen("test2.txt", "w");
-fprintf(out, "#Format: x TAB y TAB rho");
-for(j=0; j<densGrid_Zellen; j++){
-	for(k=0; k<densGrid_Zellen; k++){
-		fprintf(out, "%g \t %g \t %g \n", (j+0.5)*densGrid_Breite, (k+0.5)*densGrid_Breite, rhox[iw(j,k)][0]);
-	}//for k
-	fprintf(out, "\n");
-}//for j
-// */
-
-
-
+//* Test: Schreibe Kapillarkraefte ins Terminal
+for(i=0; i<N; i++){
+	cout << "Kapillarkraft auf Teilchen " << i << ": (" << Fkap[i][0] << ","<< Fkap[i][1] << ")" << endl;
+}//for i
 
 return 0;
 
