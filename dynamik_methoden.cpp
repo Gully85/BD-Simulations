@@ -49,15 +49,7 @@ void berechne_kapkraefte(double** r, double** Fkap){
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
-/* Test: Schreibe Dichte in Datei rho.txt
-	out = fopen("rho.txt", "w");
-	for(j=0; j<Z; j++){
-		for(l=0; l<Z; l++)
-			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, rhox[iw(j,l)][0]);
-		fprintf(out, "\n");
-	}//for j
-	fclose(out);	
-// */
+
 
 /// FFT: Schreibe transformierte Dichte in rhok[][]
 	fftw_execute(forward_plan);
@@ -65,10 +57,8 @@ void berechne_kapkraefte(double** r, double** Fkap){
 /// Multiplikation mit i sin()/dx G: Schreibe Ergebnis in Fxk[][] und Fyk[][]. Komplexe Multiplikation, Gsinx rein imaginaer
 
 	for(j=0; j<Z*Z; j++){
-		//Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
-		//Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
-		Fxk[j][0] =   sinxG[j] * rhok[j][0];
-		Fxk[j][1] =   sinxG[j] * rhok[j][1];
+		Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
+		Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
 
 		Fyk[j][0] = - sinyG[j] * rhok[j][1]; 
 		Fyk[j][1] =   sinyG[j] * rhok[j][0];
@@ -80,36 +70,6 @@ void berechne_kapkraefte(double** r, double** Fkap){
 	fftw_execute(backx_plan);
 	fftw_execute(backy_plan);
 
-//* Test: Schreibe Kraefte (auf Gitterzellen) in Dateien Fx.txt und Fy.txt. Und die imaginaerteile (sollten Null sein, weil rho reell und sinG symmetrisch).
-	FILE* out  = fopen("Fx.txt", "w");
-	FILE* out2 = fopen("Fy.txt", "w");
-	FILE* imagx= fopen("Fxi.txt", "w");
-	FILE* imagy= fopen("Fyi.txt", "w");
-
-	FILE* outu =fopen("u_entlang_xAchse.txt", "w");
-	FILE* outF =fopen("F_entlang_xAchse.txt", "w");
-	for(j=0; j<Z; j++){
-		for(l=0; l<Z; l++){
-			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, Fx[iw(j,l)][0]/Z/Z);
-			fprintf(out2, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][0]/Z/Z);
-			fprintf(imagx, "%g \t %g \t %g \n", j*dx, l*dx, Fx[iw(j,l)][1]);
-			fprintf(imagy, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][1]);
-			double qx = dq*((j+(int)(0.5*Z))%Z - 0.5*Z);
-			double qy = dq*((l+(int)(0.5*Z))%Z - 0.5*Z);
-		}//for l
-		fprintf(out, "\n");
-		fprintf(out2, "\n");
-		fprintf(imagx, "\n");
-		fprintf(imagy, "\n");
-
-		fprintf(outu, "%g \t %g \n", j*dx, Fx[iw(j,j)][0]/Z/Z);
-		fprintf(outF, "%g \t %g \n", j*dx, Fy[iw(j,j)][0]/Z/Z);
-	}//for j
-	fclose(out);
-	fclose(out2);
-	fclose(imagx);
-	fclose(imagy);
-// */
 
 /// inverse Density-Gridding: Schreibe Kraefte in Fkap
 	switch(densGrid_Schema){
@@ -170,9 +130,9 @@ void kapkraefte_init(){
 	}//for j,k
 
 /// plane FFTs
-	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_ESTIMATE);
-	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_ESTIMATE);
-	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_ESTIMATE);
+	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
+	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
+	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
 }//void kapkraefte_init
 
 
@@ -181,7 +141,7 @@ void kapkraefte_init(){
 double G(int j, int k){
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
-	if(j==0 && k==0) return 0.0;
+	if(lambda_kapillar < 0.01 && j==0 && k==0) return 0.0;
 	return 1.0/( 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx + 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx + 1.0/(lambda_kapillar*lambda_kapillar) );
 }//double G
 
