@@ -353,8 +353,6 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 		ll = (l-1+densGrid_Zellen)%densGrid_Zellen;
 		lr = (l+1)%densGrid_Zellen;
 
-
-
 		///x-Richtung: Anteil des Teilchens in Zelle k
 		d = x - (k+0.5)*densGrid_Breite;
 		xexakt = 0.75 - d*d/densGrid_Breite/densGrid_Breite;

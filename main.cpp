@@ -56,11 +56,11 @@ for(i=0; i<N; i++)
 ///setze Teilchen auf Positionen
 
 //* Test: Zunaechst nur zwei Teilchen, eins an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle. Das andere bei x=L/2 + 2.5*densGrid_Breite, y wie vorher. Damit sind die beiden Teilchen genau  zwei Zellen voneinander entfernt.
-r[0][0] = 0.5*L + 0.5*densGrid_Breite;
+r[0][0] = 0.5*densGrid_Breite + 0.5*L;
 r[0][1] = 0.5*L + 0.5*densGrid_Breite;
 
-r[1][0] = 0.5*L + 2.5*densGrid_Breite;
-r[1][1] = r[0][1];
+//r[1][0] = 0.5*L + 2.5*densGrid_Breite;
+//r[1][1] = r[0][1];
 // */
 
 
