@@ -8,22 +8,25 @@
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N = 1;
+const int N = 2;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 100.0;
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
-const int densGrid_Schema = 0; //vorher "density_gridding_schema"
+const int densGrid_Schema = 2;
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt.
-const int FFT_samples = 2048;
+const int FFT_samples = 256;
 
 
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 1.0;
+const double lambda_kapillar = 20.0;
+
+// Vorfaktor der Kapillarkraft. Ist 4 pi^2 sigma^2 gamma sin^2(theta)/(eps lambda*^4). Diese Variable ist sigma^2 gamma/eps sin^2(theta)
+const double kapillar_vorfaktor = 1.0;
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

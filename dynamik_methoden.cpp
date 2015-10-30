@@ -14,7 +14,7 @@
 using std::cout; using std::endl;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar;
+extern const double densGrid_Breite, dq, lambda_kapillar, kapillar_vorfaktor;
 extern const int densGrid_Zellen, densGrid_Schema;
 
 const int Z = densGrid_Zellen;
@@ -23,10 +23,10 @@ const double dx = densGrid_Breite;
 //semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei
 fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
 fftw_complex* rhok = NULL; // Dichte nach Fouriertrafo FORWARD. Index-Wrapping, Verschiebung und alternierende Vorzeichen
-double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung
-double* sinyG = NULL;	   // der Term sin(qy dx)/dx G(q). Index-Wrapping und Verschiebung
-fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
-fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
+double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
+double* sinyG = NULL;	   // der Term sin(qy dx)/dx G(q). Index-Wrapping und Verschiebung. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
+fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und alternierende Vorzeichen. Inklusive Vorfaktor
+fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen. Inklusive Vorfaktor
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 
@@ -102,7 +102,7 @@ void kapkraefte_init(){
 	// Dichte nach FFT. Index-Wrapping, Verschiebung, Vorzeichen. rhok[iw(j,k)][0] ist der Realteil von (-1)^(j+k) mal rhoschlange(qjk), wobei qjk = dq* ((j+Zellen/2)%Zellen - Zellen/2 ex) und analog k ey
 	rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 
-	// der Term sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung. Analog sinyG
+	// der Term sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung. Analog sinyG. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
 	sinxG = new double[Z*Z];
 	sinyG = new double[Z*Z];
 
@@ -122,12 +122,25 @@ void kapkraefte_init(){
 	for(j=0; j<Z; j++)
 	for(k=0; k<Z; k++){
 		q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
-		//sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k);
-		sinxG[iw(j,k)] = G(j,k);
+		sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k) * 4.0*M_PI*M_PI/(pow(lambda_kapillar, 4.0)) * kapillar_vorfaktor;
+		//sinxG[iw(j,k)] = G(j,k);
 
 		q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k);
+		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k) * 4.0*M_PI*M_PI/(pow(lambda_kapillar, 4.0)) * kapillar_vorfaktor;
 	}//for j,k
+
+/* Test schreibe sinxG und sinyG in Dateien
+FILE* out = fopen("sinxyG.txt", "w");
+	for(j=0; j<Z; j++){
+	for(k=0; k<Z; k++){
+		double qx = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
+		double qy = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
+
+		fprintf(out, "%g \t %g \t %g \t %g \n", qx, qy, sinxG[iw(j,k)], sinyG[iw(j,k)]);
+	}//for k
+	fprintf(out, "\n");
+	}//for j
+// */
 
 /// plane FFTs
 	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);

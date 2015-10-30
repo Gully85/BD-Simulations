@@ -15,7 +15,7 @@ double dx = 0.01;
 FILE* out0 = fopen("K0.txt", "w");
 FILE* out1 = fopen("K1.txt", "w");
 
-double xmax = 10.0;
+double xmax = 500.0;
 
 
 double x, tmp;
