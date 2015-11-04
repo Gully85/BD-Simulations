@@ -12,6 +12,9 @@ using std::cout; using std::endl;
 extern const int N,densGrid_Zellen;
 extern const double L,densGrid_Breite;
 
+//Beitrag eines Kolloids zur Dichte
+const double drho = 1.0/(densGrid_Breite*densGrid_Breite);
+
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho, verwendet Index-Wrapping. Nearest Grid Point.
 void gridDensity_NGP(fftw_complex* rho, double** r){
 
@@ -41,7 +44,7 @@ void gridDensity_NGP(fftw_complex* rho, double** r){
 
 		//kompletten Anteil auf rho[k][l] addieren
 		//rho[k][l] += 1.0;
-		rho[iw(k,l)][0] += 1.0;
+		rho[iw(k,l)][0] += drho;
 	}//for i
 
 }//void gridDens_NGP
@@ -144,18 +147,17 @@ void gridDensity_CIC(fftw_complex* rho, double** r){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-		//rho[kl][ll] += xlinks*ylinks;
-		rho[iw(kl,ll)][0] += xlinks*ylinks;
-		rho[iw(kl,l )][0] += xlinks*yexakt;
-		rho[iw(kl,lr)][0] += xlinks*yrechts;
+		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho;
+		rho[iw(kl,l )][0] += xlinks*yexakt  *drho;
+		rho[iw(kl,lr)][0] += xlinks*yrechts *drho;
 		
-		rho[iw(k ,ll)][0] += xexakt*ylinks;
-		rho[iw(k ,l )][0] += xexakt*yexakt;
-		rho[iw(k ,lr)][0] += xexakt*yrechts;
+		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho;
+		rho[iw(k ,l )][0] += xexakt*yexakt  *drho;
+		rho[iw(k ,lr)][0] += xexakt*yrechts *drho;
 
-		rho[iw(kr,ll)][0] += xrechts*ylinks;
-		rho[iw(kr,l )][0] += xrechts*yexakt;
-		rho[iw(kr,lr)][0] += xrechts*yrechts;
+		rho[iw(kr,ll)][0] += xrechts*ylinks *drho;
+		rho[iw(kr,l )][0] += xrechts*yexakt *drho;
+		rho[iw(kr,lr)][0] += xrechts*yrechts*drho;
 
 
 		/* Test
@@ -303,18 +305,17 @@ void gridDensity_TSC(fftw_complex* rho, double** r){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-//		rho[kl][ll] += xlinks*ylinks;
-		rho[iw(kl,ll)][0] += xlinks*ylinks;
-		rho[iw(kl,l )][0] += xlinks*yexakt;
-		rho[iw(kl,lr)][0] += xlinks*yrechts;
+		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho;
+		rho[iw(kl,l )][0] += xlinks*yexakt  *drho;
+		rho[iw(kl,lr)][0] += xlinks*yrechts *drho;
+		
+		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho;
+		rho[iw(k ,l )][0] += xexakt*yexakt  *drho;
+		rho[iw(k ,lr)][0] += xexakt*yrechts *drho;
 
-		rho[iw(k ,ll)][0] += xexakt*ylinks;
-		rho[iw(k ,l )][0] += xexakt*yexakt;
-		rho[iw(k ,lr)][0] += xexakt*yrechts;
-
-		rho[iw(kr,ll)][0] += xrechts*ylinks;
-		rho[iw(kr,l )][0] += xrechts*yexakt;
-		rho[iw(kr,lr)][0] += xrechts*yrechts;
+		rho[iw(kr,ll)][0] += xrechts*ylinks *drho;
+		rho[iw(kr,l )][0] += xrechts*yexakt *drho;
+		rho[iw(kr,lr)][0] += xrechts*yrechts*drho;
 		/* Test
 			cout << "Teilchen "<<i<<" am Ort ("<<x<<","<<y<<"): x-Aufteilung ("<<xlinks<<" "<<xexakt<<" "<<xrechts<<"), y-Aufteilung ("<<ylinks<<" "<<yexakt<<" "<<yrechts<<")." << endl;
 			cout << "Beteiligte Zellen: k=("<<kl<<" "<<k<<" "<<kr<<"), l=("<<ll<<" "<<l<<" "<<lr<<")." << endl << endl;

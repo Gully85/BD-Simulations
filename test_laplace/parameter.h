@@ -23,7 +23,7 @@ const int FFT_samples = 256;
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 20000.0;
+const double lambda_kapillar = 3.0;
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

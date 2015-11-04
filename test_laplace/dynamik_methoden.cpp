@@ -60,7 +60,8 @@ void berechne_kapkraefte(double** r, double** Fkap){
 	fclose(out);	
 // */
 
-	//* TESTE LAPLACE: rhox = irgendeine Funktion. laprho = laplace von der Funktion
+	double* laprho = new double[Z*Z];
+	/* TESTE LAPLACE: rhox = irgendeine Funktion. laprho = laplace von der Funktion
 	double* laprho = new double[Z*Z];
 	for(j=0; j<Z; j++)
 	for(l=0; l<Z; l++){
@@ -107,7 +108,8 @@ void berechne_kapkraefte(double** r, double** Fkap){
 	//FILE* outF =fopen("F_entlang_xAchse.txt", "w");
 	for(j=0; j<Z; j++){
 		for(l=0; l<Z; l++){
-			//					              x     y    ruecktransformiert    f                 laplace f
+			//						      1	    2		3		4			5		6=3-5
+			//					              x     y    ruecktransformiert    f                 laplace f	ruecktransformiert minus laplace
 			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", j*dx, l*dx, Fx[iw(j,l)][0]/Z/Z, rhox[iw(j,l)][0], laprho[iw(j,l)], Fx[iw(j,l)][0]/Z/Z - laprho[iw(j,l)]);
 			fprintf(out2, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][0]/Z/Z);
 			//fprintf(imagy, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][1]);
@@ -181,10 +183,10 @@ void kapkraefte_init(){
 	for(k=0; k<Z; k++){
 		//q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
 		//sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k);
-		sinxG[iw(j,k)] = G(j,k);
+		sinxG[iw(j,k)] = G(j,k); //liefert spaeter das Hoehenprofil u(r)
 
 		q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k);
+		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k); //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
 	}//for j,k
 
 /// plane FFTs
@@ -200,9 +202,9 @@ double G(int j, int k){
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
 	if(j==0 && k==0) return 0.0;
-	//return 1.0/( sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx + sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx + 1.0/(lambda_kapillar*lambda_kapillar) );
+	return 1.0/( 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx + 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx + 1.0/(lambda_kapillar*lambda_kapillar) );
 	
-	return - qx*qx - qy*qy;
+	//return - qx*qx - qy*qy;
 	//return - 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx - 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx;
 }//double G
 
