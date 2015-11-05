@@ -25,7 +25,7 @@ const int FFT_samples = 256;
 // kapillarlaenge in Einheiten von sigma
 const double lambda_kapillar = 20.0;
 
-// Vorfaktor der Kapillarkraft. Ist 4 pi^2 sigma^2 gamma sin^2(theta)/(eps lambda*^4). Diese Variable ist sigma^2 gamma/eps sin^2(theta)
+// Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
 const double kapillar_vorfaktor = 1.0;
 
 

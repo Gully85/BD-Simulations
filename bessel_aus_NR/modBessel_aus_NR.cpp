@@ -10,7 +10,7 @@
 
 int main(){
 
-double dx = 0.01;
+double dx = 0.001;
 
 FILE* out0 = fopen("K0.txt", "w");
 FILE* out1 = fopen("K1.txt", "w");

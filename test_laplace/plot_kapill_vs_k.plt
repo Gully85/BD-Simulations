@@ -14,7 +14,7 @@ K1 = '../bessel_aus_NR/K1.txt'
 L = 100
 
 #Kapillarlaenge
-lam = 3.0
+lam = 7.0
 
 #logscale?
 set xrange [0.01:L]
@@ -25,10 +25,10 @@ set logscale
 
 
 # Hoehenprofil entlang x-Achse, gegen K0/2pi
-#plot 'Fx.txt' using ($1-0.5*L):($2==0.5*L? $3 : NaN) ls 1, K0 using ($1*lam):($2/(2*pi)) ls 3
+# plot 'Fx.txt' using ($1-0.5*L):($2==0.5*L? $3 : NaN) ls 1, K0 using ($1*lam):($2/(2*pi)) ls 3
 
 
 
 
 # y-Komponente der Kraft entlang y-Achse, gegen K1/(2pi lambda)
-plot 'Fy.txt' using ($2-0.5*L):($1 == 0.5*L? $3 : NaN) ls 1#, K1 using ($1*lam):($2/(2*pi*lam)) ls 3
+ plot 'Fy.txt' using ($2-0.5*L):($1 ==0.5*L? -$3 : NaN) ls 1,K1 using ($1*lam):($2/(2*pi*lam)) ls 3

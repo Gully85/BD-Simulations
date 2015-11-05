@@ -25,7 +25,7 @@ void gridDensity_NGP(fftw_complex* rho, double** r){
 	//rho auf Null setzen
 	for(k=0; k<densGrid_Zellen; k++)
 		for(l=0; l<densGrid_Zellen; l++)
-			rho[k][l] = 0.0;
+			rho[iw(k,l)][0] = 0.0;
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
@@ -72,12 +72,8 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 		l = (int)(y/densGrid_Breite);
 
 		//kompletter Anteil ist Fx[k] und Fy[l]
-		Fkap[i][0] = Fx[k][0];
-		Fkap[i][1] = Fy[l][0];
-
-		//Faktor Z^2 wegen Diskreter Fouriertrafo ist noch drin. Rausdividieren
-		Fkap[i][0] /= (densGrid_Zellen*densGrid_Zellen);
-		Fkap[i][1] /= (densGrid_Zellen*densGrid_Zellen);
+		Fkap[i][0] = Fx[iw(k,l)][0];
+		Fkap[i][1] = Fy[iw(k,l)][0];
 
 	}//for i
 
@@ -235,11 +231,6 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 		Fkap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
 		Fkap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
 
-		//Faktor Z^2 wegen Diskreter Fouriertrafo ist noch drin. Rausdividieren
-		Fkap[i][0] /= (densGrid_Zellen*densGrid_Zellen);
-		Fkap[i][1] /= (densGrid_Zellen*densGrid_Zellen);
-
-
 	}//for i
 
 
@@ -385,11 +376,6 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 		Fkap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
 		Fkap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
-
-		//Faktor Z^2 wegen Diskreter Fouriertrafo ist noch drin. Rausdividieren
-		Fkap[i][0] /= (densGrid_Zellen*densGrid_Zellen);
-		Fkap[i][1] /= (densGrid_Zellen*densGrid_Zellen);
-
 
 	}//for i
 

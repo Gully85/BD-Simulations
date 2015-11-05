@@ -2,4 +2,5 @@ a.out
 *~
 *.cpp.alt
 *.txt
-test_laplace/*.txt
+test_laplace/Fx.txt
+tmp/

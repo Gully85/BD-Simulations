@@ -55,7 +55,7 @@ for(i=0; i<N; i++)
 
 ///setze Teilchen auf Positionen
 
-/* Test: Zunaechst nur zwei Teilchen, eins an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle. Das andere bei x=L/2 + 2.5*densGrid_Breite, y wie vorher. Damit sind die beiden Teilchen genau  zwei Zellen voneinander entfernt.
+//* Test: Zunaechst nur ein Teilchen an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle. 
 r[0][0] = 0.5*densGrid_Breite + 0.5*L;
 r[0][1] = 0.5*L + 0.5*densGrid_Breite;
 
@@ -67,41 +67,22 @@ r[0][1] = 0.5*L + 0.5*densGrid_Breite;
 // bereite Kraftberechnung vor, dh plane Fouriertrafos und reserviere Speicher
 kapkraefte_init();
 
-/* Test: setze EIN Teilchen auf zufaellige Position, berechne Kraft, gebe Kraft auf Konsole aus
-for(int schritte=0; schritte<10; schritte++){
+//* Test: Platziere zweites Teilchen im Abstand t (y-Richtung), messe Kraft Fy. Variiere t, trage ueber t auf.
+r[1][0] = r[0][0];
+FILE* outF = fopen("Fkap.txt", "w");
+for(double t=0.1; t<2.0; t+= 0.05){
 
-	//zufaellige Position
-	r[0][0] = zufall_gleichverteilt_vonbis(0.0,L);
-	r[0][1] = zufall_gleichverteilt_vonbis(0.0,L);
-
-	r[1][0] = 0.0;
-	r[1][1] = 0.0;
-
+	r[1][1] = r[0][1] + t;
 	//berechne Kapillarkraefte schreibe sie in Fkap
 	berechne_kapkraefte(r, Fkap);
 
-	//Schreibe Kapillarkraefte ins Terminal
-	for(i=0; i<N; i++){
-		cout << "Kapillarkraft auf Teilchen " << i << ": (" << Fkap[i][0] << ","<< Fkap[i][1] << ")" << endl;
-	}//for i
-}//for schritte
-// */
-
-//* Test: Setze ein Teilchen auf (0,0), eins auf (0,t), t laeuft in kleinen Schritten durch, messe Kraft
-r[0][0]=0.0;
-r[0][1]=0.0;
-r[1][0]=0.0;
-FILE* out_Fkap = fopen("Fkap.txt", "w");
-fprintf(out_Fkap, "#Format: x TAB Fkap(x) \n \n");
-for(double t=0.5; t<20.0; t+=0.1){
-	r[1][1]=t;
-	berechne_kapkraefte(r, Fkap);
-	
-	fprintf(out_Fkap, "%g \t %g \n", t, Fkap[0][1]);
+	fprintf(outF, "%g \t %g \n", t, Fkap[0][1]);
 }//for t
-fclose(out_Fkap);
 
-// */
+//* Test: Schreibe Kapillarkraefte ins Terminal
+for(i=0; i<N; i++){
+	cout << "Kapillarkraft auf Teilchen " << i << ": (" << Fkap[i][0] << ","<< Fkap[i][1] << ")" << endl;
+}//for i
 
 return 0;
 

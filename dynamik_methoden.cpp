@@ -14,7 +14,7 @@
 using std::cout; using std::endl;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, kapillar_vorfaktor;
+extern const double densGrid_Breite, dq, lambda_kapillar;
 extern const int densGrid_Zellen, densGrid_Schema;
 
 const int Z = densGrid_Zellen;
@@ -23,10 +23,10 @@ const double dx = densGrid_Breite;
 //semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei
 fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
 fftw_complex* rhok = NULL; // Dichte nach Fouriertrafo FORWARD. Index-Wrapping, Verschiebung und alternierende Vorzeichen
-double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
-double* sinyG = NULL;	   // der Term sin(qy dx)/dx G(q). Index-Wrapping und Verschiebung. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
-fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und alternierende Vorzeichen. Inklusive Vorfaktor
-fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen. Inklusive Vorfaktor
+double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung
+double* sinyG = NULL;	   // der Term sin(qy dx)/dx G(q). Index-Wrapping und Verschiebung
+fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
+fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 
@@ -40,6 +40,7 @@ double G(int j, int k);
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
 void berechne_kapkraefte(double** r, double** Fkap){
 	int j,l;
+	double x,y;
 
 /// Density-Gridding: Schreibe Dichte in rhox[][0]
 	switch(densGrid_Schema){
@@ -49,7 +50,32 @@ void berechne_kapkraefte(double** r, double** Fkap){
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
+/* Test: Schreibe Dichte in Datei rho.txt
+	out = fopen("rho.txt", "w");
+	for(j=0; j<Z; j++){
+		for(l=0; l<Z; l++)
+			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, rhox[iw(j,l)][0]);
+		fprintf(out, "\n");
+	}//for j
+	fclose(out);	
+// */
 
+	double* laprho = new double[Z*Z];
+	/* TESTE LAPLACE: rhox = irgendeine Funktion. laprho = laplace von der Funktion
+	double* laprho = new double[Z*Z];
+	for(j=0; j<Z; j++)
+	for(l=0; l<Z; l++){
+		x=j*dx;
+		y=l*dx;
+		//rhox[iw(j,l)][0] = exp(1.5*cos(4*M_PI*x/L) + 2*cos(2*M_PI*y/L));
+		//laprho[iw(j,l)] = -4*M_PI*M_PI/L/L * rhox[iw(j,l)][0] * (6*cos(4*M_PI*x/L) - 9*sin(4*M_PI*x/L)*sin(4*M_PI*x/L) + 2*cos(2*M_PI*y/L) - 4*sin(2*M_PI*y/L)*sin(2*M_PI*y/L));
+		rhox[iw(j,l)][0] = cos(2*M_PI/L * (x+y));
+		laprho[iw(j,l)] = -8*M_PI*M_PI/L/L * rhox[iw(j,l)][0];
+	
+		
+		rhox[iw(j,l)][1] = 0.0;
+	}//for j,l
+	// */
 
 /// FFT: Schreibe transformierte Dichte in rhok[][]
 	fftw_execute(forward_plan);
@@ -57,8 +83,10 @@ void berechne_kapkraefte(double** r, double** Fkap){
 /// Multiplikation mit i sin()/dx G: Schreibe Ergebnis in Fxk[][] und Fyk[][]. Komplexe Multiplikation, Gsinx rein imaginaer
 
 	for(j=0; j<Z*Z; j++){
-		Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
-		Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
+		//Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
+		//Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
+		Fxk[j][0] = - sinxG[j] * rhok[j][1];
+		Fxk[j][1] =   sinxG[j] * rhok[j][0];
 
 		Fyk[j][0] = - sinyG[j] * rhok[j][1]; 
 		Fyk[j][1] =   sinyG[j] * rhok[j][0];
@@ -70,6 +98,38 @@ void berechne_kapkraefte(double** r, double** Fkap){
 	fftw_execute(backx_plan);
 	fftw_execute(backy_plan);
 
+//* Test: Schreibe Kraefte (auf Gitterzellen) in Dateien Fx.txt und Fy.txt. Und die imaginaerteile (sollten Null sein, weil rho reell und sinG symmetrisch).
+	FILE* out  = fopen("Fx.txt", "w");
+	FILE* out2 = fopen("Fy.txt", "w");
+	FILE* outrk= fopen("Grk.txt", "w");
+
+
+	//FILE* outu =fopen("u_entlang_xAchse.txt", "w");
+	//FILE* outF =fopen("F_entlang_xAchse.txt", "w");
+	for(j=0; j<Z; j++){
+		for(l=0; l<Z; l++){
+			//						      1	    2		3		4			5		6=3-5
+			//					              x     y    ruecktransformiert    f                 laplace f	ruecktransformiert minus laplace
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", j*dx, l*dx, Fx[iw(j,l)][0]/Z/Z, rhox[iw(j,l)][0], laprho[iw(j,l)], Fx[iw(j,l)][0]/Z/Z - laprho[iw(j,l)]);
+			fprintf(out2, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][0]);
+			//fprintf(imagy, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][1]);
+			double qx = dq*((j+(int)(0.5*Z))%Z - 0.5*Z);
+			double qy = dq*((l+(int)(0.5*Z))%Z - 0.5*Z);
+			fprintf(outrk,"%g \t %g \t %g \t %g \n", qx, qy, Fxk[iw(j,l)][0]/Z/Z, Fxk[iw(j,l)][1]/Z/Z);
+		}//for l
+		fprintf(out, "\n");
+		fprintf(out2, "\n");
+		fprintf(outrk, "\n");
+		//fprintf(imagy, "\n");
+
+		//fprintf(outu, "%g \t %g \n", j*dx, Fx[iw(j,Z/2-1)][0]);
+		//fprintf(outF, "%g \t %g \n", j*dx, Fy[iw(j,Z/2-1)][0]);
+	}//for j
+	fclose(out);
+	fclose(out2);
+	//fclose(imagx);
+	//fclose(imagy);
+// */
 
 /// inverse Density-Gridding: Schreibe Kraefte in Fkap
 	switch(densGrid_Schema){
@@ -99,10 +159,15 @@ void kapkraefte_init(){
 	//Dichte vor FFT. Index-Wrapping. rhox[iw(j,k)][0] ist die Dichte in Zelle (j,k). rhox[][1] ist der Imaginaerteil, Null.
 	rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 
+	//Imaginaerteil auf Null setzen. Der wird sich nie aendern.
+	for(int j=0; j<Z; j++)
+		for(int k=0; k<Z; k++)
+			rhox[iw(j,k)][1]=0.0;
+
 	// Dichte nach FFT. Index-Wrapping, Verschiebung, Vorzeichen. rhok[iw(j,k)][0] ist der Realteil von (-1)^(j+k) mal rhoschlange(qjk), wobei qjk = dq* ((j+Zellen/2)%Zellen - Zellen/2 ex) und analog k ey
 	rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 
-	// der Term sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung. Analog sinyG. Enthaelt den Vorfaktor der Kapillarkraefte, vgl Logbuch Seite 29.
+	// der Term sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung. Analog sinyG
 	sinxG = new double[Z*Z];
 	sinyG = new double[Z*Z];
 
@@ -122,30 +187,17 @@ void kapkraefte_init(){
 	for(j=0; j<Z; j++)
 	for(k=0; k<Z; k++){
 		q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
-		sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k) * 4.0*M_PI*M_PI/(pow(lambda_kapillar, 4.0)) * kapillar_vorfaktor;
-		//sinxG[iw(j,k)] = G(j,k);
+		sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k)/Z/Z;
+		//sinxG[iw(j,k)] = G(j,k); //liefert spaeter das Hoehenprofil u(r)
 
 		q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k) * 4.0*M_PI*M_PI/(pow(lambda_kapillar, 4.0)) * kapillar_vorfaktor;
+		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k)/Z/Z; //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
 	}//for j,k
 
-/* Test schreibe sinxG und sinyG in Dateien
-FILE* out = fopen("sinxyG.txt", "w");
-	for(j=0; j<Z; j++){
-	for(k=0; k<Z; k++){
-		double qx = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
-		double qy = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-
-		fprintf(out, "%g \t %g \t %g \t %g \n", qx, qy, sinxG[iw(j,k)], sinyG[iw(j,k)]);
-	}//for k
-	fprintf(out, "\n");
-	}//for j
-// */
-
 /// plane FFTs
-	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
-	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
-	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
+	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_ESTIMATE);
+	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_ESTIMATE);
+	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_ESTIMATE);
 }//void kapkraefte_init
 
 
@@ -154,8 +206,11 @@ FILE* out = fopen("sinxyG.txt", "w");
 double G(int j, int k){
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
-	if(lambda_kapillar < 0.01 && j==0 && k==0) return 0.0;
+	if(j==0 && k==0) return 0.0;
 	return 1.0/( 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx + 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx + 1.0/(lambda_kapillar*lambda_kapillar) );
+	
+	//return - qx*qx - qy*qy;
+	//return - 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx - 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx;
 }//double G
 
 
