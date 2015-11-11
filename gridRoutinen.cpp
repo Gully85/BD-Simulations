@@ -11,12 +11,13 @@ using std::cout; using std::endl;
 
 extern const int N,densGrid_Zellen;
 extern const double L,densGrid_Breite;
+extern const double nachList_Breite;
 
 //Beitrag eines Kolloids zur Dichte
 const double drho = 1.0/(densGrid_Breite*densGrid_Breite);
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho, verwendet Index-Wrapping. Nearest Grid Point.
-void gridDensity_NGP(fftw_complex* rho, double** r){
+void gridDensity_NGP(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 	int i;
 	double x,y;
@@ -30,7 +31,7 @@ void gridDensity_NGP(fftw_complex* rho, double** r){
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
 		//x-Richtung
-		x = r[i][0];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
 		// Gitterpunkt k ist bei x=(k+0.5)*breite
 		// die x, die am dichtesten bei k sind, gehen von k*breite bis (k+1)*breite
 		k = (int) (x/densGrid_Breite);
@@ -38,7 +39,7 @@ void gridDensity_NGP(fftw_complex* rho, double** r){
 
 
 		//y-Richtung
-		y = r[i][1];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 		// die y, die am dichtesten bei l liegen, gegen von l*breite bis (l+1)*breite
 		l = (int) (y/densGrid_Breite);
 
@@ -51,7 +52,7 @@ void gridDensity_NGP(fftw_complex* rho, double** r){
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Nearest Grid Point.
-void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, double** r){
+void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
 	int i,k,l;
 	double x,y;
 
@@ -63,11 +64,11 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 /// Schleife ueber Teilchen
 	for(i=0; i<N; i++){
-		x = r[i][0];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
 		//dichtester Gitterpunkt
 		k = (int)(x/densGrid_Breite);
 
-		y = r[i][1];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 		//dichtester Gitterpunkt
 		l = (int)(y/densGrid_Breite);
 
@@ -83,7 +84,7 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Cloud-In-Cell.
-void gridDensity_CIC(fftw_complex* rho, double** r){
+void gridDensity_CIC(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -100,8 +101,8 @@ void gridDensity_CIC(fftw_complex* rho, double** r){
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
-		x = r[i][0];
-		y = r[i][1];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 
 		/// Indices der Zellen, die Anteile des Teilchens enthalten (koennen)
 		//x-Richtung
@@ -168,7 +169,7 @@ void gridDensity_CIC(fftw_complex* rho, double** r){
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Cloud In Cell.
-void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, double** r){
+void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
 
 	int i, k, l, kl, kr, ll, lr;
 	double x,y;
@@ -185,12 +186,12 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
-		x = r[i][0];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
 		k = (int)(x/densGrid_Breite);
 		kl = (k-1+densGrid_Zellen)%densGrid_Zellen;
 		kr = (k+1)%densGrid_Zellen;
 
-		y = r[i][1];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 		l = (int)(y/densGrid_Breite);
 		ll = (l-1+densGrid_Zellen)%densGrid_Zellen;
 		lr = (l+1)%densGrid_Zellen;
@@ -240,7 +241,7 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Triangle-Shaped Cloud.
-void gridDensity_TSC(fftw_complex* rho, double** r){
+void gridDensity_TSC(fftw_complex* rho, int** rr_git, double** rr_rel){
 	
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -258,8 +259,8 @@ void gridDensity_TSC(fftw_complex* rho, double** r){
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
-		x = r[i][0];
-		y = r[i][1];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 
 		/// Indices der Zellen, die Anteile des Teilchens enthalten
 		//x-Richtung
@@ -318,7 +319,7 @@ void gridDensity_TSC(fftw_complex* rho, double** r){
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Triangle Shaped Cloud.
-void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, double** r){
+void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
 
 	int i, k, l, kl, kr, ll, lr;
 	double x,y;
@@ -335,12 +336,12 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, doub
 
 	//Schleife ueber Teilchen
 	for(i=0; i<N; i++){
-		x = r[i][0];
+		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
 		k = (int)(x/densGrid_Breite);
 		kl = (k-1+densGrid_Zellen)%densGrid_Zellen;
 		kr = (k+1)%densGrid_Zellen;
 
-		y = r[i][1];
+		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
 		l = (int)(y/densGrid_Breite);
 		ll = (l-1+densGrid_Zellen)%densGrid_Zellen;
 		lr = (l+1)%densGrid_Zellen;

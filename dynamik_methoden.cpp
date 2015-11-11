@@ -1,4 +1,5 @@
 // stellt Methoden bereit, die die Bewegung der Kolloide behandeln.
+// ausserdem Methoden zur Initialisierung
 
 #pragma once
 
@@ -10,17 +11,21 @@
 #include <math.h>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 using std::cout; using std::endl;
+using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6;
 extern const int densGrid_Zellen, densGrid_Schema;
+extern int** r_git;
+extern double** r_rel;
 
 const int Z = densGrid_Zellen;
 const double dx = densGrid_Breite;
 
-//semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei
+/// semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei
 fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
 fftw_complex* rhok = NULL; // Dichte nach Fouriertrafo FORWARD. Index-Wrapping, Verschiebung und alternierende Vorzeichen
 double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung
@@ -29,128 +34,79 @@ fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und
 fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
+vector<int>** erwNachbarn = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
+
+
+
 
 fftw_plan forward_plan, backx_plan, backy_plan;
 
-//Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
-double G(int j, int k);
 
 
 
-//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
-void berechne_kapkraefte(double** r, double** Fkap){
-	int j,l;
-	double x,y;
+// initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt sie in r_git und r_rel
+void init_zufallspos(){
 
-/// Density-Gridding: Schreibe Dichte in rhox[][0]
-	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, r); break;
-		case 1: gridDensity_CIC(rhox, r); break;
-		case 2: gridDensity_TSC(rhox, r); break;
-		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
-	}//switch
-
-/* Test: Schreibe Dichte in Datei rho.txt
-	out = fopen("rho.txt", "w");
-	for(j=0; j<Z; j++){
-		for(l=0; l<Z; l++)
-			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, rhox[iw(j,l)][0]);
-		fprintf(out, "\n");
-	}//for j
-	fclose(out);	
-// */
-
-	double* laprho = new double[Z*Z];
-	/* TESTE LAPLACE: rhox = irgendeine Funktion. laprho = laplace von der Funktion
-	double* laprho = new double[Z*Z];
-	for(j=0; j<Z; j++)
-	for(l=0; l<Z; l++){
-		x=j*dx;
-		y=l*dx;
-		//rhox[iw(j,l)][0] = exp(1.5*cos(4*M_PI*x/L) + 2*cos(2*M_PI*y/L));
-		//laprho[iw(j,l)] = -4*M_PI*M_PI/L/L * rhox[iw(j,l)][0] * (6*cos(4*M_PI*x/L) - 9*sin(4*M_PI*x/L)*sin(4*M_PI*x/L) + 2*cos(2*M_PI*y/L) - 4*sin(2*M_PI*y/L)*sin(2*M_PI*y/L));
-		rhox[iw(j,l)][0] = cos(2*M_PI/L * (x+y));
-		laprho[iw(j,l)] = -8*M_PI*M_PI/L/L * rhox[iw(j,l)][0];
-	
-		
-		rhox[iw(j,l)][1] = 0.0;
-	}//for j,l
-	// */
-
-/// FFT: Schreibe transformierte Dichte in rhok[][]
-	fftw_execute(forward_plan);
-
-/// Multiplikation mit i sin()/dx G: Schreibe Ergebnis in Fxk[][] und Fyk[][]. Komplexe Multiplikation, Gsinx rein imaginaer
-
-	for(j=0; j<Z*Z; j++){
-		//Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
-		//Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
-		Fxk[j][0] = - sinxG[j] * rhok[j][1];
-		Fxk[j][1] =   sinxG[j] * rhok[j][0];
-
-		Fyk[j][0] = - sinyG[j] * rhok[j][1]; 
-		Fyk[j][1] =   sinyG[j] * rhok[j][0];
+//reserviere r_git und r_rel
+	r_git = new int*[N];
+	r_rel = new double*[N];
+	for(int i=0; i<N; i++){
+		r_git[i] = new int[2];
+		r_rel[i] = new double[2];
 	}//for i
 
+//bestimme zufaellige Positionen in [0,L], setze die Teilchen dort hin
+	for(int i=0; i<N; i++){
+		double x = zufall_gleichverteilt_vonbis(0.0, L);
+		double y = zufall_gleichverteilt_vonbis(0.0, L);
 
+		int jc = (int) x/nachList_Breite;
+		int kc = (int) y/nachList_Breite;
 
-/// FFT-1: Schreibe ruecktransformierte Kraefte in Fx[][0] und Fy[][0]
-	fftw_execute(backx_plan);
-	fftw_execute(backy_plan);
-
-//* Test: Schreibe Kraefte (auf Gitterzellen) in Dateien Fx.txt und Fy.txt. Und die imaginaerteile (sollten Null sein, weil rho reell und sinG symmetrisch).
-	FILE* out  = fopen("Fx.txt", "w");
-	FILE* out2 = fopen("Fy.txt", "w");
-	FILE* outrk= fopen("Grk.txt", "w");
-
-
-	//FILE* outu =fopen("u_entlang_xAchse.txt", "w");
-	//FILE* outF =fopen("F_entlang_xAchse.txt", "w");
-	for(j=0; j<Z; j++){
-		for(l=0; l<Z; l++){
-			//						      1	    2		3		4			5		6=3-5
-			//					              x     y    ruecktransformiert    f                 laplace f	ruecktransformiert minus laplace
-			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", j*dx, l*dx, Fx[iw(j,l)][0]/Z/Z, rhox[iw(j,l)][0], laprho[iw(j,l)], Fx[iw(j,l)][0]/Z/Z - laprho[iw(j,l)]);
-			fprintf(out2, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][0]);
-			//fprintf(imagy, "%g \t %g \t %g \n", j*dx, l*dx, Fy[iw(j,l)][1]);
-			double qx = dq*((j+(int)(0.5*Z))%Z - 0.5*Z);
-			double qy = dq*((l+(int)(0.5*Z))%Z - 0.5*Z);
-			fprintf(outrk,"%g \t %g \t %g \t %g \n", qx, qy, Fxk[iw(j,l)][0]/Z/Z, Fxk[iw(j,l)][1]/Z/Z);
-		}//for l
-		fprintf(out, "\n");
-		fprintf(out2, "\n");
-		fprintf(outrk, "\n");
-		//fprintf(imagy, "\n");
-
-		//fprintf(outu, "%g \t %g \n", j*dx, Fx[iw(j,Z/2-1)][0]);
-		//fprintf(outF, "%g \t %g \n", j*dx, Fy[iw(j,Z/2-1)][0]);
-	}//for j
-	fclose(out);
-	fclose(out2);
-	//fclose(imagx);
-	//fclose(imagy);
-// */
-
-/// inverse Density-Gridding: Schreibe Kraefte in Fkap
-	switch(densGrid_Schema){
-		case 0: inv_gridDensity_NGP(Fkap, Fx, Fy, r); break;
-		case 1: inv_gridDensity_CIC(Fkap, Fx, Fy, r); break;
-		case 2: inv_gridDensity_TSC(Fkap, Fx, Fy, r); break;
-		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
-	}//switch
+		r_git[i][0] = jc;
+		r_git[i][1] = kc;
+		r_rel[i][0] = x - jc*nachList_Breite;
+		r_rel[i][1] = y - kc*nachList_Breite;
+		
+	}//for i
 	
+} //void init_zufallspos
 
-}//void berechne_kapkraefte
+// initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git und r_rel schon die Teilchenpositionen stehen.
+void WCA_init(){
 
+	//vector<int>** erwNachbarn ist die erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
 
+	//reserviere Speicher
+	erwNachbarn = new vector<int>*[nachList_Zellen];
+	for(int i=0; i<nachList_Zellen; i++){
+		erwNachbarn[i] = new vector<int>[nachList_Zellen];
+	}//for i
 
+	int* x = new int[3]; //links davon, exakt, rechts davon
+	int* y = new int[3];
 
+	//trage jedes Teilchen in seine Zelle, und die 8 Nachbarzellen ein
+	for(int teilchen=0; teilchen<N; teilchen++){
+		int k = r_git[teilchen][0];
+		int l = r_git[teilchen][1];
+		
+		//ermittle beteiligte Zellen
+		x[0] = (k-1+nachList_Zellen)%nachList_Zellen;
+		x[1] = k;
+		x[2] = (k+1)%nachList_Zellen;
+		y[0] = (l-1+nachList_Zellen)%nachList_Zellen;
+		y[1] = l;
+		y[2] = (l+1)%nachList_Zellen;
+		
+		//fuege Teilchen diesen Zellen hinzu
+		for(int i=0;i<3;i++)
+		  for(int j=0;j<3;j++)
+		    erwNachbarn[x[i]][y[j]].push_back(teilchen);
+		
+	}//for teilchen
 
-
-
-
-
-
+} //void WCA_init
 
 //initialisiert Felder, plant Fouriertrafos
 void kapkraefte_init(){
@@ -201,12 +157,159 @@ void kapkraefte_init(){
 }//void kapkraefte_init
 
 
+// berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
+void berechne_WCAkraefte(double** F_WCA){
+	int i; //Teilchen
+	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
+	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
+
+	if(F_WCA == NULL){
+		cout << "Fehler: WCA-Kraefteberechnung aufgerufen, aber nicht initialisiert!" << endl;
+		return;
+	}//if nicht initialisiert
+
+	//setze F_WCA auf Null
+	for(i=0; i<N; i++){
+		F_WCA[i][0]=0.0;
+		F_WCA[i][1]=0.0;
+	}//for
+	
+	//Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
+	for(i=0; i<N; i++){
+		int ic = r_git[i][0];
+		int jc = r_git[i][1];
+		
+		for(j = erwNachbarn[ic][jc].begin(); j!=erwNachbarn[ic][jc].end(); j++){
+			if(i == *j) continue; //ueberspringe WW mit sich selbst
+			
+			//Abstand berechnen, mit periodischen Randbedingungen
+			a2 = abstand2(i, *j, r_git, r_rel);
+			
+			//falls zu weit entfernt, WW ueberspringen
+			if(a2 > zweihoch1_6*zweihoch1_6) continue;
+			
+			//Absolutkoordinaten
+			double x1 = r_git[ i][0]*nachList_Breite + r_rel[ i][0];
+			double y1 = r_git[ i][1]*nachList_Breite + r_rel[ i][1];
+			double x2 = r_git[*j][0]*nachList_Breite + r_rel[*j][0];
+			double y2 = r_git[*j][1]*nachList_Breite + r_rel[*j][1];
+			
+			double dx = x1-x2;
+			double dy = y1-y2;
+			
+			//periodische Randbedingungen. Falls dx^2 + dy^2 == a2 ist, ist dies nicht noetig.
+			if(dx*dx + dy*dy > a2){
+				//x-Richtung nahe am Rand?
+				if((dx-L)*(dx-L) < dx*dx)
+					x2 += L;
+				else if((dx+L)*(dx+L) < dx*dx)
+					x2 -= L;
+				dx = x1-x2;
+				
+				//y-Richtung nahe am Rand?
+				if((dy-L)*(dy-L) < dy*dy)
+					y2 += L;
+				else if((dy+L)*(dy+L) < dy*dy)
+					y2 -= L;
+				dy = y1-y2;
+				
+			}//if periodische Randbedingungen
+			
+			// a^(-8) und a^(-14)
+			double a_8 = 1.0/(a2*a2*a2*a2);
+			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+			
+			//addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
+			F_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
+			F_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
+			
+			
+			
+		}//for j
+	}//for i
+}//void berechne_WCAkraefte
+
+
+
+//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
+void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
+	int j,l;
+	double x,y;
+
+/// Density-Gridding: Schreibe Dichte in rhox[][0]
+	switch(densGrid_Schema){
+		case 0: gridDensity_NGP(rhox, rr_git, rr_rel); break;
+		case 1: gridDensity_CIC(rhox, rr_git, rr_rel); break;
+		case 2: gridDensity_TSC(rhox, rr_git, rr_rel); break;
+		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
+	}//switch
+
+/* Test: Schreibe Dichte in Datei rho.txt
+	out = fopen("rho.txt", "w");
+	for(j=0; j<Z; j++){
+		for(l=0; l<Z; l++)
+			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, rhox[iw(j,l)][0]);
+		fprintf(out, "\n");
+	}//for j
+	fclose(out);	
+// */
+
+/// FFT: Schreibe transformierte Dichte in rhok[][]
+	fftw_execute(forward_plan);
+
+/// Multiplikation mit i sin()/dx G: Schreibe Ergebnis in Fxk[][] und Fyk[][]. Komplexe Multiplikation, Gsinx rein imaginaer
+
+	for(j=0; j<Z*Z; j++){
+		Fxk[j][0] = - sinxG[j] * rhok[j][1]; // -im*im
+		Fxk[j][1] =   sinxG[j] * rhok[j][0]; // im*re
+
+		Fyk[j][0] = - sinyG[j] * rhok[j][1]; 
+		Fyk[j][1] =   sinyG[j] * rhok[j][0];
+	}//for i
+
+
+
+/// FFT-1: Schreibe ruecktransformierte Kraefte in Fx[][0] und Fy[][0]
+	fftw_execute(backx_plan);
+	fftw_execute(backy_plan);
+
+
+/// inverse Density-Gridding: Schreibe Kraefte in Fkap
+	switch(densGrid_Schema){
+		case 0: inv_gridDensity_NGP(Fkap, Fx, Fy, rr_git, rr_rel); break;
+		case 1: inv_gridDensity_CIC(Fkap, Fx, Fy, rr_git, rr_rel); break;
+		case 2: inv_gridDensity_TSC(Fkap, Fx, Fy, rr_git, rr_rel); break;
+		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
+	}//switch
+	
+
+}//void berechne_kapkraefte
+
+//Schreibt 2*anzahl Zufallszahlen mit Varianz 1.0 in dn[anzahl][2]. Nicht gaussverteilt, sondern gleichverteilt.
+void berechne_zufallskraefte(int anzahl, double** dn){
+	const double wurzelfuenf = sqrt(5.0);
+	double x,y;
+	for(int i=0; i<anzahl; i++){
+		do{
+			x = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
+			y = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
+		} while(x*x + y*y > 5.0);
+		
+		dn[i][0] = x;
+		dn[i][1] = y;
+		
+	}//for i
+}//void berechne_zufallskraefte
+
+
+
+
 
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k){
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
-	if(j==0 && k==0) return 0.0;
+	if(j==0 && k==0 && lambda_kapillar>0.2*L) return 0.0;
 	return 1.0/( 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx + 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx + 1.0/(lambda_kapillar*lambda_kapillar) );
 	
 	//return - qx*qx - qy*qy;
