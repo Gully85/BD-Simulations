@@ -17,16 +17,16 @@ const double L = 100.0;
 const int densGrid_Schema = 2;
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt.
-const int FFT_samples = 256;
+const int FFT_samples = 512;
 
 
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 20.0;
+const double lambda_kapillar = 15.0;
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
-const double kapillar_vorfaktor = 1.0;
+const double kapillar_vorfaktor = 100.0;
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

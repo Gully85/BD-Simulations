@@ -17,7 +17,7 @@ using std::cout; using std::endl;
 using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern int** r_git;
 extern double** r_rel;
@@ -72,7 +72,7 @@ void init_zufallspos(){
 	
 } //void init_zufallspos
 
-// initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git und r_rel schon die Teilchenpositionen stehen.
+// initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(){
 
 	//vector<int>** erwNachbarn ist die erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
@@ -143,17 +143,17 @@ void kapkraefte_init(){
 	for(j=0; j<Z; j++)
 	for(k=0; k<Z; k++){
 		q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
-		sinxG[iw(j,k)] = sin(q*dx)/dx * G(j,k)/Z/Z;
+		sinxG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z;
 		//sinxG[iw(j,k)] = G(j,k); //liefert spaeter das Hoehenprofil u(r)
 
 		q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-		sinyG[iw(j,k)] = sin(q*dx)/dx * G(j,k)/Z/Z; //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
+		sinyG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z; //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
 	}//for j,k
 
 /// plane FFTs
-	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_ESTIMATE);
-	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_ESTIMATE);
-	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_ESTIMATE);
+	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
+	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
+	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
 }//void kapkraefte_init
 
 

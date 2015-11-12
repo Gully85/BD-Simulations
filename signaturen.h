@@ -13,14 +13,15 @@ void gridDensity_TSC(fftw_complex* rhox, int** rr_git, double** rr_rel); //Trian
 
 
 // diese drei Funktionen fuehren inverses density-Gridding durch, dh berechnen aus N Teilchenpositionen und den Kraeften an Gitterpunkten die Kraefte auf Teilchen.
-void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); //WIP umstellen auf git,rel
-void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); //WIP umstellen auf git,rel
-void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); //WIP umstellen auf git,rel
+void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
+void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
+void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
 
-
+//reserviere Speicher fuer Felder in der main
+void main_init();
 // initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt in r_git und r_rel
 void init_zufallspos(); 
-// initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git und r_rel schon die Teilchenpositionen stehen.
+// initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(); 
 // berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
 void berechne_WCAkraefte(double** F_WCA); 

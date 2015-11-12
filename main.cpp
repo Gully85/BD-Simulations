@@ -29,7 +29,7 @@ extern const double lambda_kapillar;
 /// Globale Felder. Mit Null initialisiert.
 
 // Teilchenpositionen, x- und y-Koordinate. r[i][0] ist die x-Koordinate der Position von Teilchen i.
-double** r = NULL; //wird bald verschwinden, weil durch r_git und r_rel ausdrueckbar
+//double** r = NULL; //wird bald verschwinden, weil durch r_git und r_rel ausdrueckbar
 
 // Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
 int** r_git = NULL;
@@ -52,58 +52,49 @@ int main(){
 srand(time(NULL));
 
 int i,j,k;
-FILE* out;
+
 
 ///reserviere Felder
-
-// Teilchenpositionen, x- und y-Koordinate. r[i][0] ist die 0-Koordinate (x) der Position von Teilchen i.
-r = new double*[N];
-for(i=0; i<N; i++)
-	r[i] = new double[2];
-
-// Kapillarkraefte, die gerade auf Teilchen wirken. Erster Index TeilchenNr, zweiter Index Raumrichtung
-Fkap = new double*[N];
-for(i=0; i<N; i++)
-	Fkap[i] = new double[2];
-
-//WCA-Kraefte, die gerade auf Teilchen wirken. Erster Index TeilchenNr, zweiter Index Raumrichtung
-F_WCA = new double*[N];
-for(i=0; i<N; i++)
-	F_WCA[i] = new double[2];
-
-//Zufallskraefte, gleiche Indices
-F_noise = new double*[N];
-for(i=0; i<N; i++)
-	F_noise[i] = new double[2];
-
+main_init();
 
 ///setze Teilchen auf Positionen
+//init_zufallspos(); //setzt alle Teilchen auf zufaellige Positionen
 
 //* Test: Zunaechst nur ein Teilchen an Position x=L/2 + 0.5*densGrid_Breite, y=x. Also genau in der Mitte einer densGrid-Zelle. 
-r[0][0] = 0.5*densGrid_Breite + 0.5*L;
-r[0][1] = 0.5*L + 0.5*densGrid_Breite;
+//r[0][0] = 0.5*densGrid_Breite + 0.5*L;
+//r[0][1] = 0.5*L + 0.5*densGrid_Breite;
+double x = 0.5*densGrid_Breite + 0.5*L;
+r_git[0][0] = (int) (x/nachList_Breite);
+r_rel[0][0] = x - nachList_Breite*r_git[0][0];
+r_git[0][1] = r_git[0][0];
+r_rel[0][1] = r_rel[0][0];
 
-//r[1][0] = 0.5*L + 2.5*densGrid_Breite;
-//r[1][1] = r[0][1];
-// */
+//Gittervektor des zweiten Teilchens, damit die Nachbarlisten richtig gebaut werden
+r_git[1][0] = r_git[0][0];
+r_git[1][1] = r_git[0][1];
 
 
 // bereite Kraftberechnung vor, dh plane Fouriertrafos und reserviere Speicher
 kapkraefte_init();
+WCA_init();
 
 //* Test: Platziere zweites Teilchen im Abstand t (y-Richtung), messe Kraft Fy. Variiere t, trage ueber t auf.
-r[1][0] = r[0][0];
-FILE* outF = fopen("Fkap.txt", "w");
-for(double t=0.1; t<2.0; t+= 0.05){
+r_git[1][0] = r_git[0][0]; //x-Komponente wie Teilchen 0
+r_rel[1][0] = r_rel[0][0];
 
-	r[1][1] = r[0][1] + t;
-	//berechne Kapillarkraefte schreibe sie in Fkap
+FILE* outF = fopen("Fvonr.txt", "w");
+fprintf(outF, "# Format: r TAB Fkap TAB F_WCA TAB summe \n\n");
+for(double t=0.1; t<2.0; t+= 0.01){
+
+	x = 0.5*densGrid_Breite + 0.5*L + t; //eigentlich y
+	r_git[1][1] = (int) (x/nachList_Breite);
+	r_rel[1][1] = x - nachList_Breite*r_git[1][1];
+	//berechne Kapillarkraefte, schreibe sie in Fkap
 	berechne_kapkraefte(r_git, r_rel, Fkap);
+	//berechne WCA-Kraefte, schreibe sie in F_WCA
+	berechne_WCAkraefte(F_WCA);
 	
-	//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
-void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap); 
-
-	fprintf(outF, "%g \t %g \n", t, Fkap[0][1]);
+	fprintf(outF, "%g \t %g \t %g \t %g\n", t, Fkap[0][1], F_WCA[0][1], Fkap[0][1]+F_WCA[0][1]);
 }//for t
 
 //* Test: Schreibe Kapillarkraefte ins Terminal
@@ -154,5 +145,29 @@ double abstand2(int i, int j, int** rr_git, double** rr_rel){
 }//double abstand2
 
 
+//reserviere Speicher fuer Felder in der main
+void main_init(){
+	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
+	r_git = new int*[N];
+	// dasgleiche, Vektor innerhalb der Zelle
+	r_rel = new double*[N];
+	for(int i=0; i<N; i++){
+		r_git[i] = new int[2];
+		r_rel[i] = new double[2];
+	}//for i
+	
+	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+	Fkap = new double*[N];
+	//WCA-Kraefte, gleiche Indices
+	F_WCA= new double*[N];
+	//Zufallskraefte, gleiche Indices
+	F_noise = new double*[N];
+	for(int i=0; i<N; i++){
+		Fkap[i] = new double[2];
+		F_WCA[i]= new double[2];
+		F_noise[i] = new double[2];
+	}//for i
+	
+}//void main_init
 
 
