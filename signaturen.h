@@ -1,5 +1,6 @@
 #pragma once
 
+extern const double dt_max;
 
 // Index-Wrapping, um 2-dimensionale Felder mit einem Index anzusprechen. FFTW erwartet Felder mit nur einem Index
 int iw(int i, int j);
@@ -17,7 +18,7 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
 void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
 
-//reserviere Speicher fuer Felder in der main
+//reserviere Speicher und setze Teilchen auf Startpositionen
 void main_init();
 // initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt in r_git und r_rel
 void init_zufallspos(); 
@@ -31,6 +32,11 @@ void kapkraefte_init();
 void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap); 
 //Schreibt 2*anzahl Zufallszahlen mit Varianz 1.0 in dn[anzahl][2]
 void berechne_zufallskraefte(int anzahl, double** dn);
+//Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
+double zeitschritt(double dt = dt_max);
+//bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
+double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int N1); //TODO
+void erwListe_rem(vector<int>** liste, int); //streiche Eintrag aus erwListe //TODO
 
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k);

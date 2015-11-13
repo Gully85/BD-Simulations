@@ -29,6 +29,14 @@ const double lambda_kapillar = 15.0;
 const double kapillar_vorfaktor = 100.0;
 
 
+
+// maximaler Zeitschritt
+const double dt_max = 0.05;
+
+//maximale Reisedistanz in einem Zeitschritt
+const double max_reisedistanz = 0.1;
+
+
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
 
 

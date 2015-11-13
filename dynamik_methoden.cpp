@@ -17,7 +17,7 @@ using std::cout; using std::endl;
 using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern int** r_git;
 extern double** r_rel;
@@ -35,12 +35,86 @@ fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 vector<int>** erwNachbarn = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
-
+double** Fkap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 
 
 
 fftw_plan forward_plan, backx_plan, backy_plan;
 
+
+
+//Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
+double zeitschritt(double tmax){ //WIP
+	double deltat=tmax; //tatsaechliche Dauer. Koennte kleiner werden als tmax
+	
+	if(tmax <= 0.0){
+		cout << "Fehler: Negative Zeitschrittweite " << tmax << " gefordert, breche ab!" << endl;
+		return 1.0e10;
+	}//if tmax negativ, alles abbrechen
+	
+	//Berechne alle benoetigten Kraefte
+	berechne_WCAkraefte(F_WCA); //schreibt in F_WCA
+	berechne_kapkraefte(r_git, r_rel, Fkap);
+	berechne_zufallskraefte(N, F_noise);
+	
+	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
+	deltat = optimaler_zeitschritt(F_WCA, Fkap, F_noise, deltat, N1);
+	
+	
+	//alle Teilchen bewegen
+	for(int teilchen=0; teilchen<N; teilchen++){
+		double dx = deltat * (F_WCA[teilchen][0] + Fkap[teilchen][0]) + sqrt(2.0*T*deltat)*F_noise[i][0];
+		double dy = deltat * (F_WCA[teilchen][1] + Fkap[teilchen][1]) + sqrt(2.0*T*deltat)*F_noise[i][1];
+		
+		r_rel[teilchen][0] += dx;
+		r_rel[teilchen][1] += dy;
+		
+		
+		//ueber Zellgrenze bewegt?
+		if(r_rel[teilchen][0] < 0.0 || r_rel[teilchen][0] > nachList_Breite
+		|| r_rel[teilchen][1] < 0.0 || r_rel[teilchen][1] > nachList_Breite){
+			//Indices der alten Zelle
+			int ic = r_git[teilchen][0];
+			int jc = r_git[teilchen][1];
+			
+			//Zellen, in denen das Teilchen bisher eingetragen war
+			int x[3]; int y[3];
+			x[0] = (ic-1 + nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1 + nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			//aus allen entfernen
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwListe_rem(erwNachbarn[x[i]][y[j]], teilchen);
+			
+			//Indices der neuen Zelle. Koennen noch negative oder zu grosse Werte haben. floor() rundet auch negative Zahlen korrekt ab.
+			ic = (int) floor((r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0])/nachList_Breite);
+			jc = (int) floor((r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1])/nachList_Breite);
+			
+			// korrigiere negative bzw zu grosse Zellindices, durch period. Randbed.
+			ic = (ic+nachList_Zellen)%nachList_Zellen;
+			jc = (jc+nachList_Zellen)%nachList_Zellen;
+			
+			//trage neue Position in Gitter- und Relativvektor ein
+			r_rel[i][0] = fmod(r_rel[i][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r_rel[i][1] = fmod(r_rel[i][1] + nachList_Breite, nachList_Breite);
+			r_git[i][0] = ic;
+			r_git[i][1] = jc;
+			
+			//fuege Teilchen den neuen Nachbarlisten hinzu
+			//TODO
+			
+		}//if aus Zelle bewegt
+		
+	}//for i
+	
+}//double zeitschritt
 
 
 
@@ -282,6 +356,11 @@ void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 	
+	/* Test: Schreibe Kapillarkraefte ins Terminal
+	for(i=0; i<N; i++){
+		cout << "Kapillarkraft auf Teilchen " << i << ": (" << Fkap[i][0] << ","<< Fkap[i][1] << ")" << endl;
+	}//for i
+	// */
 
 }//void berechne_kapkraefte
 
@@ -302,6 +381,40 @@ void berechne_zufallskraefte(int anzahl, double** dn){
 }//void berechne_zufallskraefte
 
 
+//reserviere Speicher, setze Teilchen auf Startpositionen, rufe andere init() auf.
+void main_init(){
+	
+	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
+	r_git = new int*[N];
+	// dasgleiche, Vektor innerhalb der Zelle
+	r_rel = new double*[N];
+	for(int i=0; i<N; i++){
+		r_git[i] = new int[2];
+		r_rel[i] = new double[2];
+	}//for i
+	
+	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+	Fkap = new double*[N];
+	//WCA-Kraefte, gleiche Indices
+	F_WCA= new double*[N];
+	//Zufallskraefte, gleiche Indices
+	F_noise = new double*[N];
+	for(int i=0; i<N; i++){
+		Fkap[i] = new double[2];
+		F_WCA[i]= new double[2];
+		F_noise[i] = new double[2];
+	}//for i
+	
+	// Teilchen auf Startpositionen setzen. Zunaechst sind das nur Zufallspositionen
+	init_zufallspos();
+	
+	//init Kraftberechnungen
+	WCA_init();
+	kapkraefte_init();
+	
+}//void main_init
+
+
 
 
 
@@ -315,15 +428,6 @@ double G(int j, int k){
 	//return - qx*qx - qy*qy;
 	//return - 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx - 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx;
 }//double G
-
-
-
-
-
-
-
-
-
 
 
 
