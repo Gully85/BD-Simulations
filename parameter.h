@@ -8,10 +8,10 @@
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N = 2;
+const int N = 10;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 100.0;
+const double L = 60.0;
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2;
@@ -28,6 +28,8 @@ const double lambda_kapillar = 15.0;
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
 const double kapillar_vorfaktor = 100.0;
 
+// Temperatur, in Einheiten kT/eps
+const double T = 0.1;
 
 
 // maximaler Zeitschritt

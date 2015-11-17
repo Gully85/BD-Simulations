@@ -1,5 +1,11 @@
 #pragma once
 
+#include <fftw3.h>
+#include <vector>
+#include <algorithm>
+
+using std::vector; using std::min;
+
 extern const double dt_max;
 
 // Index-Wrapping, um 2-dimensionale Felder mit einem Index anzusprechen. FFTW erwartet Felder mit nur einem Index
@@ -35,9 +41,8 @@ void berechne_zufallskraefte(int anzahl, double** dn);
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
 double zeitschritt(double dt = dt_max);
 //bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
-double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int N1); //TODO
-void erwListe_rem(vector<int>** liste, int); //streiche Eintrag aus erwListe //TODO
-
+double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int N1); 
+void erwListe_rem(vector<int>& liste, int i); //streiche Eintrag aus erwListe
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k);
 

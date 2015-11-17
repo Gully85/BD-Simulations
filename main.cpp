@@ -1,9 +1,9 @@
+#include "signaturen.h"
 #include "zufall.cpp"
 #include <cstdlib>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "gridRoutinen.cpp"
-#include "signaturen.h"
 #include <fftw3.h>
 #include "dynamik_methoden.cpp"
 #include <algorithm>
@@ -42,12 +42,31 @@ int main(){
 
 srand(time(NULL));
 
-int i,j,k;
-
 
 /// initialisiere Felder, Positionen, Kraftberechnungen
 main_init();
 
+FILE* out;
+
+// Startpositionen speichern
+out = fopen("startpos.txt", "w");
+for(int teilchen=0; teilchen<N; teilchen++){
+	double x = r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0];
+	double y = r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1];
+	fprintf(out, "%g \t %g \n", x, y);
+}//for teilchen
+fclose(out);
+
+zeitschritt();
+
+// neue Positionen speichern
+out = fopen("pos.txt", "w");
+for(int teilchen=0; teilchen<N; teilchen++){
+	double x = r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0];
+	double y = r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1];
+	fprintf(out, "%g \t %g \n", x, y);
+}//for teilchen
+fclose(out);
 
 /* Test: Platziere zweites Teilchen im Abstand t (y-Richtung), messe Kraft Fy. Variiere t, trage ueber t auf.
 r_git[1][0] = r_git[0][0]; //x-Komponente wie Teilchen 0

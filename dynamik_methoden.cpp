@@ -17,7 +17,7 @@ using std::cout; using std::endl;
 using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern int** r_git;
 extern double** r_rel;
@@ -46,7 +46,7 @@ fftw_plan forward_plan, backx_plan, backy_plan;
 
 
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
-double zeitschritt(double tmax){ //WIP
+double zeitschritt(double tmax){ 
 	double deltat=tmax; //tatsaechliche Dauer. Koennte kleiner werden als tmax
 	
 	if(tmax <= 0.0){
@@ -59,14 +59,25 @@ double zeitschritt(double tmax){ //WIP
 	berechne_kapkraefte(r_git, r_rel, Fkap);
 	berechne_zufallskraefte(N, F_noise);
 	
-	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
-	deltat = optimaler_zeitschritt(F_WCA, Fkap, F_noise, deltat, N1);
+	//* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
+	for(int teilchen=0; teilchen<N; teilchen++){
+		cout << teilchen << " an (" << r_git[teilchen][0]*nachList_Breite+r_rel[teilchen][0] << "," << r_git[teilchen][1]*nachList_Breite+r_rel[teilchen][1] << "):\tWCA=(" << F_WCA[teilchen][0] << "," << F_WCA[teilchen][1]<< "),\tkap=(" << Fkap[teilchen][0]<<","<<Fkap[teilchen][1]<<"), noise=("<<F_noise[teilchen][0]<<","<<F_noise[teilchen][1]<<")" << endl;
+	}//for teilchen
+	// */
 	
+	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
+	deltat = optimaler_zeitschritt(F_WCA, Fkap, F_noise, deltat, N);
+	
+	cout << endl << "Zeitschritt: " << deltat << endl;
 	
 	//alle Teilchen bewegen
 	for(int teilchen=0; teilchen<N; teilchen++){
-		double dx = deltat * (F_WCA[teilchen][0] + Fkap[teilchen][0]) + sqrt(2.0*T*deltat)*F_noise[i][0];
-		double dy = deltat * (F_WCA[teilchen][1] + Fkap[teilchen][1]) + sqrt(2.0*T*deltat)*F_noise[i][1];
+		double dx = deltat * (F_WCA[teilchen][0] + Fkap[teilchen][0]) + sqrt(2.0*T*deltat)*F_noise[teilchen][0];
+		double dy = deltat * (F_WCA[teilchen][1] + Fkap[teilchen][1]) + sqrt(2.0*T*deltat)*F_noise[teilchen][1];
+		
+		//*Test: dr ausgeben
+		cout << "Teilchen " << teilchen << ": dr=("<<dx<<","<<dy<<")"<< endl;
+		// */
 		
 		r_rel[teilchen][0] += dx;
 		r_rel[teilchen][1] += dy;
@@ -102,13 +113,24 @@ double zeitschritt(double tmax){ //WIP
 			jc = (jc+nachList_Zellen)%nachList_Zellen;
 			
 			//trage neue Position in Gitter- und Relativvektor ein
-			r_rel[i][0] = fmod(r_rel[i][0] + nachList_Breite, nachList_Breite); //fmod=modulo
-			r_rel[i][1] = fmod(r_rel[i][1] + nachList_Breite, nachList_Breite);
-			r_git[i][0] = ic;
-			r_git[i][1] = jc;
+			r_rel[teilchen][0] = fmod(r_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r_rel[teilchen][1] = fmod(r_rel[teilchen][1] + nachList_Breite, nachList_Breite);
+			r_git[teilchen][0] = ic;
+			r_git[teilchen][1] = jc;
 			
 			//fuege Teilchen den neuen Nachbarlisten hinzu
-			//TODO
+			//Zellen, in die das Teilchen eingetragen werden soll. ic,jc sind schon aktuell
+			x[0] = (ic-1+nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1+nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwNachbarn[x[i]][y[j]].push_back(teilchen);
+			
 			
 		}//if aus Zelle bewegt
 		
@@ -428,6 +450,85 @@ double G(int j, int k){
 	//return - qx*qx - qy*qy;
 	//return - 4*sin(0.5*qx*dx)*sin(0.5*qx*dx)/dx/dx - 4*sin(0.5*qy*dx)*sin(0.5*qy*dx)/dx/dx;
 }//double G
+
+
+//streiche Eintrag aus erwListe
+void erwListe_rem(vector<int>& liste, int k){
+	vector<int>::iterator i;
+	
+	//springe zum richtigen Eintrag
+	for(i=liste.begin(); i!=liste.end(); ++i)
+		if(*i == k) break;
+	
+	/* Test: War k ueberhaupt in der Liste?
+	if(*i != k){
+		cout << "Fehler in erwListe_rem(): Teilchen " << k << " nicht gefunden! Liste: ";
+		for(i=liste.begin(); i<liste.end(); i++){
+			cout << *i << " ";
+		cout << endl;
+		return;
+		}//for i
+	}//if k nicht in Liste
+	// */
+	
+	liste.erase(i);
+}//void erwListe_rem
+
+//bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
+double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int NN){
+	if (0==NN) return deltat;
+	
+	double ret = deltat; //spaeter return-Wert, kann nur kleiner werden
+	
+	const double mrd = max_reisedistanz; //kuerzerer Name
+	
+	//Loesen quadratischer Gleichungen:
+	// Aus m < |Fdt + sqrt(2T dt)dn| erhaelt man
+	// Falls F==0: dt < m^2/(2T (dn^2))
+	// Falls F!=0: dt < (w-|u|)^2 mit u=dn*sqrt(2T)/(8F) und w=sqrt(u^2 + m/(4|F|))
+	
+	// hier:
+	// m = mrd
+	// F = F_WCA+Fkap
+	// dn = F_noise
+	// T=T und dt = ret
+	
+	
+	for(int teilchen=0; teilchen<NN; teilchen++){
+		
+		// x-Komponente
+		double F = F_WCA[teilchen][0] + Fkap[teilchen][0];
+		if(F < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][0]*F_noise[teilchen][0]));
+		else{
+			double u = F_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else F ungleich Null
+		
+		
+		
+		
+		// y-Komponente
+		F = F_WCA[teilchen][1] + Fkap[teilchen][1];
+		if(F < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][1]*F_noise[teilchen][1]));
+		else{
+			double u = F_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else F ungleich Null
+		
+		
+		
+	}//for teilchen
+	return ret;
+}//double optimaler_zeitschritt 
+
+
+
+
+
 
 
 
