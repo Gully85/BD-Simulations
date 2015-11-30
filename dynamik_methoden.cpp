@@ -406,6 +406,9 @@ void berechne_zufallskraefte(int anzahl, double** dn){
 //reserviere Speicher, setze Teilchen auf Startpositionen, rufe andere init() auf.
 void main_init(){
 	
+	//Random Seed
+	init_random();
+	
 	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
 	r_git = new int*[N];
 	// dasgleiche, Vektor innerhalb der Zelle
