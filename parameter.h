@@ -8,7 +8,7 @@
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N = 10;
+const int N = 500;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 60.0;
@@ -18,8 +18,6 @@ const int densGrid_Schema = 2;
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt.
 const int FFT_samples = 512;
-
-
 
 
 // kapillarlaenge in Einheiten von sigma
@@ -37,6 +35,26 @@ const double dt_max = 0.05;
 
 //maximale Reisedistanz in einem Zeitschritt
 const double max_reisedistanz = 0.1;
+
+
+
+//mitteln über wie viele runs?
+const int runs = 2;
+
+//Observable aufnehmen in welchem Zeitabstand?
+const double obs_dt = 0.1;
+
+// Obervable aufnehmen wie oft?
+const int obs_anzahl = 2;
+
+
+// Binbreite Paarkorrelationsfunktion
+const double korr_dr = 0.05;
+
+// größtes r der Paarkorrelationsfunktion
+const double korr_rmax = 5.0;
+
+
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
@@ -64,4 +82,5 @@ const double dq = 2.0*M_PI/L;
 // Abtastrate bzw Bandbreite im reziproken Raum. q's gehen (komponentenweise) von -Omega bis +Omega
 const double Omega = M_PI/densGrid_Breite;
 
-
+// Anzahl Bins Paarkorrelationsfunktion
+const int korr_bins = (int) (korr_rmax/korr_dr);

@@ -19,7 +19,7 @@ using std::uniform_real_distribution;
 mt19937_64 generator;
 uniform_real_distribution<double> dist(0.0,1.0);
 
-void init_random(){
+void init_rng(){
 	generator.seed( time(NULL) );
 }
 

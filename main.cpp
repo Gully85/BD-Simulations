@@ -8,6 +8,8 @@
 #include "dynamik_methoden.cpp"
 #include <algorithm>
 
+#include "auswertung.cpp"
+
 
 using std::cout; using std::endl; using std::flush; using std::vector; using std::min;
 
@@ -24,12 +26,14 @@ extern const double nachList_Breite;
 
 extern const double lambda_kapillar;
 
+extern const int obs_anzahl;
+extern const double obs_dt;
+
+extern const int runs;
+
 
 
 /// Globale Felder. Mit Null initialisiert.
-
-// Teilchenpositionen, x- und y-Koordinate. r[i][0] ist die x-Koordinate der Position von Teilchen i.
-//double** r = NULL; //wird bald verschwinden, weil durch r_git und r_rel ausdrueckbar
 
 // Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
 int** r_git = NULL;
@@ -40,54 +44,40 @@ double** r_rel = NULL;
 
 int main(){
 
-srand(time(NULL));
-
-
-/// initialisiere Felder, Positionen, Kraftberechnungen
-main_init();
-
-FILE* out;
-
-// Startpositionen speichern
-out = fopen("startpos.txt", "w");
-for(int teilchen=0; teilchen<N; teilchen++){
-	double x = r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0];
-	double y = r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1];
-	fprintf(out, "%g \t %g \n", x, y);
-}//for teilchen
-fclose(out);
-
-zeitschritt();
-
-// neue Positionen speichern
-out = fopen("pos.txt", "w");
-for(int teilchen=0; teilchen<N; teilchen++){
-	double x = r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0];
-	double y = r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1];
-	fprintf(out, "%g \t %g \n", x, y);
-}//for teilchen
-fclose(out);
-
-/* Test: Platziere zweites Teilchen im Abstand t (y-Richtung), messe Kraft Fy. Variiere t, trage ueber t auf.
-r_git[1][0] = r_git[0][0]; //x-Komponente wie Teilchen 0
-r_rel[1][0] = r_rel[0][0];
-
-FILE* outF = fopen("Fvonr.txt", "w");
-fprintf(outF, "# Format: r TAB Fkap TAB F_WCA TAB summe \n\n");
-for(double t=0.1; t<2.0; t+= 0.01){
-
-	x = 0.5*densGrid_Breite + 0.5*L + t; //eigentlich y
-	r_git[1][1] = (int) (x/nachList_Breite);
-	r_rel[1][1] = x - nachList_Breite*r_git[1][1];
-	//berechne Kapillarkraefte, schreibe sie in Fkap
-	berechne_kapkraefte(r_git, r_rel, Fkap);
-	//berechne WCA-Kraefte, schreibe sie in F_WCA
-	berechne_WCAkraefte(F_WCA);
+	init_rng(); //Random Seed
+/*
+	main_init();
+	double t= zeitschritt();
 	
-	fprintf(outF, "%g \t %g \t %g \t %g\n", t, Fkap[0][1], F_WCA[0][1], Fkap[0][1]+F_WCA[0][1]);
-}//for t
-//*/
+	cout << "t="<<t<<endl;
+/*/
+for(int run=0; run<runs; run++){
+	main_init();
+	cout << "run nr " << run << endl;
+	
+	cout << "record obs-Punkt 0 von " << obs_anzahl << endl;
+	record_korrelationsfunktion(run, 0);
+	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
+		double t=0.0;
+		
+		//Zeitschritte bis t=obs_dt
+		while(t < obs_dt){
+			t += zeitschritt(obs_dt-t);
+// 			cout << "t="<<t<<endl;
+		}//while obs-Punkt noch nicht erreicht
+		
+		cout << "record obs-Punkt " << obs_nr << " von " << obs_anzahl << endl;
+		record_korrelationsfunktion(run, obs_nr);
+	}//for obs_nr
 
+}//for run
+
+
+//Statistik, und Ergebnis in Datei schreiben
+auswerten_korrelationsfunktion();
+
+
+// */
 
 
 return 0;
@@ -97,7 +87,10 @@ return 0;
 
 
 
-//index-Wrapping, ermoeglicht es 1dim-Arrays mit zwei Indices anzusprechen. FFTW erwartet Arrays mit nur einem Index. NOCH keine period. Randbed, aber die kann man hier einbauen
+
+
+
+//index-Wrapping, ermoeglicht es 1dim-Arrays mit zwei Indices anzusprechen. FFTW erwartet Arrays mit nur einem Index. Keine period. Randbed.
 int iw(int i, int j){
 	if (i>=densGrid_Zellen || j>= densGrid_Zellen || i<0 || j<0){
 		cout << "Index out of Bounds! Aufruf war iw(i=" <<i<<", j=" <<j<<") \n" << endl << flush;
@@ -109,13 +102,13 @@ int iw(int i, int j){
 }//int index
 
 //berechnet das Quadrat des Abstands zwischen Teilchen i und Teilchen j (gleichen Typs). Berücksichtigt periodische Randbedingungen.
-double abstand2(int i, int j, int** rr_git, double** rr_rel){
+double abstand2(int i, int j){
 	
 	//Absolutpositionen
-	double xi_abs = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
-	double xj_abs = rr_git[j][0]*nachList_Breite + rr_rel[j][0];
-	double yi_abs = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
-	double yj_abs = rr_git[j][1]*nachList_Breite + rr_rel[j][1];
+	double xi_abs = r_git[i][0]*nachList_Breite + r_rel[i][0];
+	double xj_abs = r_git[j][0]*nachList_Breite + r_rel[j][0];
+	double yi_abs = r_git[i][1]*nachList_Breite + r_rel[i][1];
+	double yj_abs = r_git[j][1]*nachList_Breite + r_rel[j][1];
 	
 	// dx^2, durch die periodischen Randbed gibt es drei Moeglichkeiten
 	double tmp1 = xi_abs - xj_abs;
@@ -131,5 +124,3 @@ double abstand2(int i, int j, int** rr_git, double** rr_rel){
 	
 	return dx2 + dy2;
 }//double abstand2
-
-

@@ -41,7 +41,9 @@ double** F_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Inde
 
 
 
-fftw_plan forward_plan, backx_plan, backy_plan;
+fftw_plan forward_plan=NULL;
+fftw_plan backx_plan=NULL;
+fftw_plan backy_plan=NULL;
 
 
 
@@ -59,7 +61,7 @@ double zeitschritt(double tmax){
 	berechne_kapkraefte(r_git, r_rel, Fkap);
 	berechne_zufallskraefte(N, F_noise);
 	
-	//* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
+	/* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
 	for(int teilchen=0; teilchen<N; teilchen++){
 		cout << teilchen << " an (" << r_git[teilchen][0]*nachList_Breite+r_rel[teilchen][0] << "," << r_git[teilchen][1]*nachList_Breite+r_rel[teilchen][1] << "):\tWCA=(" << F_WCA[teilchen][0] << "," << F_WCA[teilchen][1]<< "),\tkap=(" << Fkap[teilchen][0]<<","<<Fkap[teilchen][1]<<"), noise=("<<F_noise[teilchen][0]<<","<<F_noise[teilchen][1]<<")" << endl;
 	}//for teilchen
@@ -68,15 +70,15 @@ double zeitschritt(double tmax){
 	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
 	deltat = optimaler_zeitschritt(F_WCA, Fkap, F_noise, deltat, N);
 	
-	cout << endl << "Zeitschritt: " << deltat << endl;
+// 	cout << endl << "Zeitschritt: " << deltat << endl;
 	
 	//alle Teilchen bewegen
 	for(int teilchen=0; teilchen<N; teilchen++){
 		double dx = deltat * (F_WCA[teilchen][0] + Fkap[teilchen][0]) + sqrt(2.0*T*deltat)*F_noise[teilchen][0];
 		double dy = deltat * (F_WCA[teilchen][1] + Fkap[teilchen][1]) + sqrt(2.0*T*deltat)*F_noise[teilchen][1];
 		
-		//*Test: dr ausgeben
-		cout << "Teilchen " << teilchen << ": dr=("<<dx<<","<<dy<<")"<< endl;
+		//* Test: dr ausgeben
+// 		cout << "Teilchen " << teilchen << ": dr=("<<dx<<","<<dy<<")"<< endl;
 		// */
 		
 		r_rel[teilchen][0] += dx;
@@ -135,7 +137,7 @@ double zeitschritt(double tmax){
 		}//if aus Zelle bewegt
 		
 	}//for i
-	
+	return deltat;
 }//double zeitschritt
 
 
@@ -143,14 +145,7 @@ double zeitschritt(double tmax){
 // initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt sie in r_git und r_rel
 void init_zufallspos(){
 
-//reserviere r_git und r_rel
-	r_git = new int*[N];
-	r_rel = new double*[N];
-	for(int i=0; i<N; i++){
-		r_git[i] = new int[2];
-		r_rel[i] = new double[2];
-	}//for i
-
+	
 //bestimme zufaellige Positionen in [0,L], setze die Teilchen dort hin
 	for(int i=0; i<N; i++){
 		double x = zufall_gleichverteilt_vonbis(0.0, L);
@@ -173,12 +168,19 @@ void WCA_init(){
 
 	//vector<int>** erwNachbarn ist die erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
 
+	
 	//reserviere Speicher
-	erwNachbarn = new vector<int>*[nachList_Zellen];
-	for(int i=0; i<nachList_Zellen; i++){
-		erwNachbarn[i] = new vector<int>[nachList_Zellen];
-	}//for i
-
+	if(erwNachbarn == NULL){
+		erwNachbarn = new vector<int>*[nachList_Zellen];
+		for(int i=0; i<nachList_Zellen; i++){
+			erwNachbarn[i] = new vector<int>[nachList_Zellen];
+		}//for i
+	}//if erwNachbarn==NULL
+	else
+		for(int i=0; i<nachList_Zellen; i++)
+		for(int j=0; j<nachList_Zellen; j++){
+			erwNachbarn[i][j].clear();
+		}//for i,j
 	int* x = new int[3]; //links davon, exakt, rechts davon
 	int* y = new int[3];
 
@@ -209,47 +211,55 @@ void kapkraefte_init(){
 
 /// alloziere Felder
 	//Dichte vor FFT. Index-Wrapping. rhox[iw(j,k)][0] ist die Dichte in Zelle (j,k). rhox[][1] ist der Imaginaerteil, Null.
-	rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+	if(rhox == NULL){
+		rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 
 	//Imaginaerteil auf Null setzen. Der wird sich nie aendern.
 	for(int j=0; j<Z; j++)
-		for(int k=0; k<Z; k++)
-			rhox[iw(j,k)][1]=0.0;
+	for(int k=0; k<Z; k++)
+		rhox[iw(j,k)][1]=0.0;
+
+	}//if rhox==NULL
 
 	// Dichte nach FFT. Index-Wrapping, Verschiebung, Vorzeichen. rhok[iw(j,k)][0] ist der Realteil von (-1)^(j+k) mal rhoschlange(qjk), wobei qjk = dq* ((j+Zellen/2)%Zellen - Zellen/2 ex) und analog k ey
-	rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+	if(rhok == NULL)
+		rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+
+	if(Fxk == NULL){
+		// Kraefte vor FFT-1. Index-Wrapping, Verschiebung, Vorzeichen.
+		Fxk = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+		Fyk = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+
+		// Kraefte nach FFT-1. Index-Wrapping.
+		Fx  = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+		Fy  = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+	}//if Fxk==NULL
 
 	// der Term sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung. Analog sinyG
-	sinxG = new double[Z*Z];
-	sinyG = new double[Z*Z];
-
-	// Kraefte vor FFT-1. Index-Wrapping, Verschiebung, Vorzeichen.
-	Fxk = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
-	Fyk = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
-
-	// Kraefte nach FFT-1. Index-Wrapping.
-	Fx  = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
-	Fy  = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
-
-
+	if(sinxG == NULL){
+		sinxG = new double[Z*Z];
+		sinyG = new double[Z*Z];
 
 /// schreibe Werte (zB G) in die Felder, die konstant sind
-	int i,j,k;
-	double q;
-	for(j=0; j<Z; j++)
-	for(k=0; k<Z; k++){
-		q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
-		sinxG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z;
-		//sinxG[iw(j,k)] = G(j,k); //liefert spaeter das Hoehenprofil u(r)
+		int i,j,k;
+		double q;
+		for(j=0; j<Z; j++)
+		for(k=0; k<Z; k++){
+			q = dq* ((j+(int)(Z*0.5))%Z - 0.5*Z );
+			sinxG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z;
+			//sinxG[iw(j,k)] = G(j,k); //liefert spaeter das Hoehenprofil u(r)
 
-		q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
-		sinyG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z; //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
-	}//for j,k
-
+			q = dq* ((k+(int)(Z*0.5))%Z - 0.5*Z );
+			sinyG[iw(j,k)] = kapillar_vorfaktor * sin(q*dx)/dx * G(j,k)/Z/Z; //liefert spaeter die y-Komponente der Kraft. Entlang der y-Achse sollte das K1 entsprechen.
+		}//for j,k
+	}//if sinxG==NULL
+	
 /// plane FFTs
-	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
-	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
-	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
+	if(forward_plan == NULL){
+		forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
+		backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
+		backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
+	}//if forward_plan==NULL
 }//void kapkraefte_init
 
 
@@ -279,7 +289,7 @@ void berechne_WCAkraefte(double** F_WCA){
 			if(i == *j) continue; //ueberspringe WW mit sich selbst
 			
 			//Abstand berechnen, mit periodischen Randbedingungen
-			a2 = abstand2(i, *j, r_git, r_rel);
+			a2 = abstand2(i, *j);
 			
 			//falls zu weit entfernt, WW ueberspringen
 			if(a2 > zweihoch1_6*zweihoch1_6) continue;
@@ -340,16 +350,6 @@ void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
-/* Test: Schreibe Dichte in Datei rho.txt
-	out = fopen("rho.txt", "w");
-	for(j=0; j<Z; j++){
-		for(l=0; l<Z; l++)
-			fprintf(out, "%g \t %g \t %g \n", j*dx, l*dx, rhox[iw(j,l)][0]);
-		fprintf(out, "\n");
-	}//for j
-	fclose(out);	
-// */
-
 /// FFT: Schreibe transformierte Dichte in rhok[][]
 	fftw_execute(forward_plan);
 
@@ -377,12 +377,6 @@ void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
 		case 2: inv_gridDensity_TSC(Fkap, Fx, Fy, rr_git, rr_rel); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
-	
-	/* Test: Schreibe Kapillarkraefte ins Terminal
-	for(i=0; i<N; i++){
-		cout << "Kapillarkraft auf Teilchen " << i << ": (" << Fkap[i][0] << ","<< Fkap[i][1] << ")" << endl;
-	}//for i
-	// */
 
 }//void berechne_kapkraefte
 
@@ -405,33 +399,35 @@ void berechne_zufallskraefte(int anzahl, double** dn){
 
 //reserviere Speicher, setze Teilchen auf Startpositionen, rufe andere init() auf.
 void main_init(){
-	
-	//Random Seed
-	init_random();
-	
+
+	init_korrelationsfunktion();
+
 	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
-	r_git = new int*[N];
-	// dasgleiche, Vektor innerhalb der Zelle
-	r_rel = new double*[N];
-	for(int i=0; i<N; i++){
-		r_git[i] = new int[2];
-		r_rel[i] = new double[2];
-	}//for i
+	if(r_git == NULL){
+		r_git = new int*[N];
+		// dasgleiche, Vektor innerhalb der Zelle
+		r_rel = new double*[N];
+		for(int i=0; i<N; i++){
+			r_git[i] = new int[2];
+			r_rel[i] = new double[2];
+		}//for i
+	}//if r_git == NULL
 	
 	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
-	Fkap = new double*[N];
-	//WCA-Kraefte, gleiche Indices
-	F_WCA= new double*[N];
-	//Zufallskraefte, gleiche Indices
-	F_noise = new double*[N];
-	for(int i=0; i<N; i++){
-		Fkap[i] = new double[2];
-		F_WCA[i]= new double[2];
-		F_noise[i] = new double[2];
-	}//for i
-	
+	if(Fkap == NULL){
+		Fkap = new double*[N];
+		//WCA-Kraefte, gleiche Indices
+		F_WCA= new double*[N];
+		//Zufallskraefte, gleiche Indices
+		F_noise = new double*[N];
+		for(int i=0; i<N; i++){
+			Fkap[i] = new double[2];
+			F_WCA[i]= new double[2];
+			F_noise[i] = new double[2];
+		}//for i
+	}//if Fkap==NULL
 	// Teilchen auf Startpositionen setzen. Zunaechst sind das nur Zufallspositionen
-	init_zufallspos();
+	init_zufallspos(); 
 	
 	//init Kraftberechnungen
 	WCA_init();

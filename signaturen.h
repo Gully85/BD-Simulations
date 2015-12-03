@@ -46,5 +46,15 @@ void erwListe_rem(vector<int>& liste, int i); //streiche Eintrag aus erwListe
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k);
 
+//reserviere Speicher für Paarkorrelationsfunktion
+void init_korrelationsfunktion();//void init_korrelationsfunktion
+
+//Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
+void record_korrelationsfunktion(int ar, int t);
+void auswerten_korrelationsfunktion();//ruft statistik auf und schreibt Ergebnisse in Datei
+void statistik_1(vector<double>*& input, vector<double>& mittelwerte, vector<double>& varianzen, int anzahl);
+
+
+
 //berechnet das Quadrat des Abstands zwischen Teilchen i und Teilchen j (gleichen Typs). Berücksichtigt periodische Randbedingungen.
-double abstand2(int i, int j, int** r_git, double** r_rel);
+double abstand2(int i, int j);
