@@ -48,6 +48,15 @@ double G(int j, int k);
 
 //reserviere Speicher für Paarkorrelationsfunktion
 void init_korrelationsfunktion();//void init_korrelationsfunktion
+//reserviere Speicher und vorab-Berechnungen für fouriertransformierte Dichte
+void init_ftrho();
+//schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
+void record_ftrho_unkorrigiert(int ar, int t);
+//dividiert Korrekturen aus ftrho raus
+void korrigiere_ftrho();
+//suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück
+int suche(int a, vector<int> v);
+
 
 //Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
 void record_korrelationsfunktion(int ar, int t);

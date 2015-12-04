@@ -9,12 +9,15 @@
 
 extern const double korr_dr;
 extern const int korr_bins;
+extern const int ftrho_qbins;
+extern const double ftrho_dq;
 extern const double obs_dt;
 extern const int obs_anzahl;
 extern const int runs;
 
 extern int** r_git;
 extern double** r_rel;
+extern const double nachList_Breite;
 extern const int N;
 
 
@@ -22,14 +25,25 @@ using std::vector;
 
 
 //Paarkorrelationsfunktion. Erster Index Durchlauf, zweiter Index Zeit in Einheiten obs_dt, dritter Index r in Einheiten korr_dr
-vector<double>** g11;
+vector<double>** g11 = NULL;
 // vector<vector<double> > g11;
 
 //Paarkorrelationsfunktion, über Runs gemittelt. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-vector<double>* g11_mittel;
+vector<double>* g11_mittel = NULL;
 
 //Fehlerbalken Paarkorrelationsfunktion, über Runs gemittelt. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-vector<double>* g11_fehler;
+vector<double>* g11_fehler = NULL;
+
+//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index r (nachschlagen in order[])
+vector<double>** ftrho_re = NULL;
+vector<double>** ftrho_im = NULL;
+
+//Hilfsfelder für fouriertransformierte Dichte
+vector<int> ftrho_order;
+vector<int> ftrho_qabs2;
+vector<int> ftrho_beitraege;
+
+
 
 void init_korrelationsfunktion(){
 	
@@ -72,6 +86,107 @@ void record_korrelationsfunktion(int ar, int t){
 	
 }//void record_korrelationsfunktion
 
+
+void init_ftrho(){
+	
+	if(ftrho_re != NULL) return;
+	
+	ftrho_order.clear();
+	ftrho_qabs2.clear();
+	ftrho_beitraege.clear();
+	
+	const int qbins2 = ftrho_qbins*ftrho_qbins;
+	
+	int stelle_in_order=0;
+	
+	for(int i=0; i<ftrho_qbins; i++)
+	for(int j=0; j<ftrho_qbins; j++){
+		int ind2 = i*i + j*j;
+		if(ind2 > qbins2) break;
+		
+		int b = suche(ind2, ftrho_qabs2); // -1 wenn nicht drin, sonst Index wo ind2 in qabs steht
+		
+		if(-1 == b){
+			ftrho_qabs2.push_back(ind2);
+			ftrho_beitraege.push_back(1);
+			ftrho_order.push_back(stelle_in_order++);
+		}//if nicht drin
+		else{
+			ftrho_beitraege[b]++;
+			ftrho_order.push_back(b);
+		}//else drin		
+	}//for i,j
+	
+	//reserviere Vektoren für alle record()-Aufrufe
+	ftrho_re = new vector<double>*[runs];
+	ftrho_im = new vector<double>*[runs];
+	for(int i=0; i<runs; i++){
+		ftrho_re[i] = new vector<double>[obs_anzahl];
+		ftrho_im[i] = new vector<double>[obs_anzahl];
+	}//for i bis runs
+	
+}//void init_ftrho
+
+//schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
+void record_ftrho_unkorrigiert(int ar, int t){
+	
+	//Vektor auf richtige Länge bringen, Nullen reinschreiben
+	ftrho_re[ar][t].assign(ftrho_qabs2.size(), 0.0);
+	ftrho_im[ar][t].assign(ftrho_qabs2.size(), 0.0);
+	
+	const int qbins2 = ftrho_qbins*ftrho_qbins;
+	
+	int stelle_in_order=0;
+	
+	for(int i=0; i<ftrho_qbins; i++)
+	for(int j=0; j<ftrho_qbins; j++){
+		int ind2 = i*i + j*j;
+		
+		if(ind2 > qbins2) break;
+		
+		//berechne die Summen cos(k*r_i) und sin(k*r_i)
+		double sum_c = 0.0;
+		double sum_s = 0.0;
+		for(int teilchenNr=0; teilchenNr<N; teilchenNr++){
+			double x = r_git[teilchenNr][0]*nachList_Breite + r_rel[teilchenNr][0];
+			double y = r_git[teilchenNr][1]*nachList_Breite + r_rel[teilchenNr][0];
+			
+			double skalarprodukt = ftrho_dq*(x*i + y*j);
+			
+			sum_c += cos(skalarprodukt);
+			sum_s += sin(skalarprodukt);
+		}//for teilchen
+		
+		//addiere an richtige Stelle in S[.] diese Summe
+		int stelle = ftrho_order[stelle_in_order++];
+		ftrho_re[ar][t][stelle] += sum_c;
+		ftrho_im[ar][t][stelle] += sum_s;
+		
+	}//for i,j
+}//void record_ftrho
+
+//dividiert Korrekturen aus ftrho raus. Für alle runs und obs_anzahl, nur einmal aufrufen
+void korrigiere_ftrho(){
+	for(int ar=0; ar<runs; ar++)
+	for(int t=0; t<obs_anzahl; t++){
+		double faktor = L*L;
+		for(int i=0; i<ftrho_re[0][0].size(); i++){
+			ftrho_re[ar][t][i] /= faktor*ftrho_beitraege[i];
+			ftrho_im[ar][t][i] /= faktor*ftrho_beitraege[i];
+		}//for i bis size
+	}//for run, t
+}//void korrigiere_ftrho
+
+//suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück
+int suche(int a, vector<int> v){
+	
+	for(int i=0; i<v.size(); i++)
+		if(v[i] == a)
+			return i;
+		
+	return -1;
+		
+}//int suche
 
 //berechnet Mittelwerte und Varianzen von input[][][]. Mittelung über den ersten Index, der bis runs geht. Der zweite geht bis anzahl.
 void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<double>*& varianzen, int anzahl){
@@ -128,7 +243,6 @@ void auswerten_korrelationsfunktion(){
 		fprintf(out, "\n");
 	}//for j bis obs_anzahl
 }//void auswerten_korrelationsfunktion
-
 
 
 

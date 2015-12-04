@@ -55,7 +55,8 @@ const double korr_dr = 0.05;
 const double korr_rmax = 5.0;
 
 
-
+//größtes q in rhothilde, in Einheiten dq=4pi/L
+const int ftrho_qbins = 10;
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
 
@@ -75,7 +76,6 @@ const double densGrid_Breite = L/FFT_samples;
 // Anzahl Gitterzellen (je Raumrichtung) fuer Density Gridding (Teilchenpositionen |-> Dichte auf Gitterpunkten)
 const int densGrid_Zellen = FFT_samples; //vorher "G"
 
-
 // Breite jeder Gitterzelle im reziproken Raum
 const double dq = 2.0*M_PI/L;
 
@@ -84,3 +84,6 @@ const double Omega = M_PI/densGrid_Breite;
 
 // Anzahl Bins Paarkorrelationsfunktion
 const int korr_bins = (int) (korr_rmax/korr_dr);
+
+//Breite dq für rhothilde
+const double ftrho_dq = 4.0*M_PI/L;
