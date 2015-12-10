@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "auswertung.cpp"
+#include "positionen_speichernladen.cpp"
 
 
 using std::cout; using std::endl; using std::flush; using std::vector; using std::min;
@@ -53,6 +54,17 @@ int main(){
 /*/
 for(int run=0; run<runs; run++){
 	main_init();
+	
+	init_ftrho();
+	record_ftrho_unkorrigiert(0,0); //Parameter: run und Zeit
+	auswerten_ftrho();
+	
+	pos_schreiben();
+	
+	return 0;
+	
+	
+	
 	cout << "run nr " << run << endl;
 	
 	cout << "record obs-Punkt 0 von " << obs_anzahl << endl;

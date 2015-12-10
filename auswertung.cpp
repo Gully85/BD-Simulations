@@ -34,7 +34,11 @@ vector<double>* g11_mittel = NULL;
 //Fehlerbalken Paarkorrelationsfunktion, über Runs gemittelt. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
 vector<double>* g11_fehler = NULL;
 
-//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index r (nachschlagen in order[])
+
+vector<double>* ftrho_re_mittel;
+vector<double>* ftrho_re_fehler;
+
+//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index q (nachschlagen in order[] und qabs2[])
 vector<double>** ftrho_re = NULL;
 vector<double>** ftrho_im = NULL;
 
@@ -165,11 +169,45 @@ void record_ftrho_unkorrigiert(int ar, int t){
 	}//for i,j
 }//void record_ftrho
 
+// FTrho auswerten: ruft korrigiere() und statistik() auf und schreibt Mittelwerte/Fehlerbalken in Datei. WIP
+void auswerten_ftrho(){
+	
+	korrigiere_ftrho();
+	
+	//erster Index Zeit, zweiter Index q-Werte nachschlagen in qabs2
+	ftrho_re_mittel = new vector<double>[obs_anzahl];
+	ftrho_re_fehler = new vector<double>[obs_anzahl];
+	vector<double>* ftrho_im_mittel = new vector<double>[obs_anzahl];
+	vector<double>* ftrho_im_fehler = new vector<double>[obs_anzahl];
+	
+	
+	statistik_1(ftrho_re, ftrho_re_mittel, ftrho_re_fehler, obs_anzahl);
+	statistik_1(ftrho_im, ftrho_im_mittel, ftrho_im_fehler, obs_anzahl);
+	
+	
+	FILE* out = fopen("ftrho.txt", "w");
+	fprintf(out, "# Format: q TAB t TAB re(rhotilde) TAB Fehler davon TAB im(rhotilde) TAB Fehler davon \n\n");
+	for(int j=0; j<obs_anzahl; j++){ // j läuft durch die Zeit, dh t in Einheiten obs_dt
+		double t = j*obs_dt;
+		for(int i=0; i<ftrho_re[0][0].size(); i++){ // i läuft durch die q-Werte
+		
+			double q = ftrho_dq*sqrt(ftrho_qabs2[i]);
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", q, t, ftrho_re_mittel[j][i], ftrho_re_fehler[j][i], ftrho_im_mittel[j][i], ftrho_im_fehler[j][i]);
+		}// for j, Zeit
+	}//for i, q-Werte
+	
+	delete[] ftrho_re_mittel;
+	delete[] ftrho_re_fehler;
+	delete[] ftrho_im_mittel;
+	delete[] ftrho_im_fehler;
+	
+}//void auswerten_ftrho
+
 //dividiert Korrekturen aus ftrho raus. Für alle runs und obs_anzahl, nur einmal aufrufen
 void korrigiere_ftrho(){
 	for(int ar=0; ar<runs; ar++)
 	for(int t=0; t<obs_anzahl; t++){
-		double faktor = L*L;
+		double faktor = 1.0;
 		for(int i=0; i<ftrho_re[0][0].size(); i++){
 			ftrho_re[ar][t][i] /= faktor*ftrho_beitraege[i];
 			ftrho_im[ar][t][i] /= faktor*ftrho_beitraege[i];

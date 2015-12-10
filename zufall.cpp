@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <math.h>
 #include <random>
-#include <chrono>
+// #include <chrono>
 #include <functional>
 
 //typedef std::chrono::high_resolution_clock myclock;
@@ -16,16 +16,21 @@
 using std::mt19937_64;  //generator
 using std::uniform_real_distribution; 
 
-mt19937_64 generator;
-uniform_real_distribution<double> dist(0.0,1.0);
+mt19937_64 generator(time(NULL));
+// mt19937_64 generator;
 
-void init_rng(){
-	generator.seed( time(NULL) );
-}
+uniform_real_distribution<double> dist(0.0,1.0);
 
 //gleichverteilte Zufallszahl aus [0.0 , 1.0]
 auto zufall_gleichverteilt = std::bind(dist, generator);
-//Typ ist allerdings: Methode (void) -> double
+//Typ ist: Methode (void) -> double
+
+
+void init_rng(){
+	
+// 	generator.seed( time(NULL) );
+}
+
 
 
 double zufall_gleichverteilt_vonbis(double min, double max){

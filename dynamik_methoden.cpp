@@ -22,6 +22,8 @@ extern const int densGrid_Zellen, densGrid_Schema;
 extern int** r_git;
 extern double** r_rel;
 
+extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
+
 const int Z = densGrid_Zellen;
 const double dx = densGrid_Breite;
 
@@ -142,26 +144,7 @@ double zeitschritt(double tmax){
 
 
 
-// initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt sie in r_git und r_rel
-void init_zufallspos(){
 
-	
-//bestimme zufaellige Positionen in [0,L], setze die Teilchen dort hin
-	for(int i=0; i<N; i++){
-		double x = zufall_gleichverteilt_vonbis(0.0, L);
-		double y = zufall_gleichverteilt_vonbis(0.0, L);
-
-		int jc = (int) x/nachList_Breite;
-		int kc = (int) y/nachList_Breite;
-
-		r_git[i][0] = jc;
-		r_git[i][1] = kc;
-		r_rel[i][0] = x - jc*nachList_Breite;
-		r_rel[i][1] = y - kc*nachList_Breite;
-		
-	}//for i
-	
-} //void init_zufallspos
 
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(){
@@ -426,8 +409,28 @@ void main_init(){
 			F_noise[i] = new double[2];
 		}//for i
 	}//if Fkap==NULL
-	// Teilchen auf Startpositionen setzen. Zunaechst sind das nur Zufallspositionen
-	init_zufallspos(); 
+	
+	switch(startpos_methode){
+		case 1:
+			init_zufallspos();
+			break;
+		case 2:
+			init_pos_aus_datei();
+			break;
+		case 3:
+			init_gitterstart();
+			break;
+		case 4:
+			init_allegleich();
+			break;
+		case 5:
+			init_kreisscheibe();
+			break;
+		default:
+			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3" << endl;
+			break;
+	}//switch startpos_methode
+	
 	
 	//init Kraftberechnungen
 	WCA_init();

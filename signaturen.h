@@ -28,6 +28,17 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 void main_init();
 // initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt in r_git und r_rel
 void init_zufallspos(); 
+// initialisiert Teilchenpositionen auf Positionen, die in Datei stehen. Dateiname wird in parameter.h festgelegt. 
+void init_pos_aus_datei();
+// initialisiert Teilchenpositionen auf ein regelmäßiges quadratisches Gitter. 
+void init_gitterstart();
+// initialisiert alle Teilchenpositionen auf (L/2, L/2), also alle am selben Ort
+void init_allegleich();
+// initialisiert alle Teilchenpositionen innerhalb eines Kreises (Radius 20) in der Mitte der Box
+void init_kreisscheibe();
+// schreibt aktuelle Teilchenpositionen in Datei.
+void pos_schreiben();
+
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(); 
 // berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
@@ -54,6 +65,11 @@ void init_ftrho();
 void record_ftrho_unkorrigiert(int ar, int t);
 //dividiert Korrekturen aus ftrho raus
 void korrigiere_ftrho();
+//ruft korrigiere() und statistik() auf und schreibt Ergebnisse in Datei. 
+void auswerten_ftrho();
+
+
+
 //suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück
 int suche(int a, vector<int> v);
 
@@ -61,7 +77,7 @@ int suche(int a, vector<int> v);
 //Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
 void record_korrelationsfunktion(int ar, int t);
 void auswerten_korrelationsfunktion();//ruft statistik auf und schreibt Ergebnisse in Datei
-void statistik_1(vector<double>*& input, vector<double>& mittelwerte, vector<double>& varianzen, int anzahl);
+void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<double>*& varianzen, int anzahl);
 
 
 

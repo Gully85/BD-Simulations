@@ -4,14 +4,17 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <string>
+
+using std::string;
 
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N = 500;
+const int N = 8000;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 60.0;
+const double L = 600.0;
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2;
@@ -39,13 +42,13 @@ const double max_reisedistanz = 0.1;
 
 
 //mitteln über wie viele runs?
-const int runs = 2;
+const int runs = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
 const double obs_dt = 0.1;
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 2;
+const int obs_anzahl = 1;
 
 
 // Binbreite Paarkorrelationsfunktion
@@ -56,7 +59,18 @@ const double korr_rmax = 5.0;
 
 
 //größtes q in rhothilde, in Einheiten dq=4pi/L
-const int ftrho_qbins = 10;
+const int ftrho_qbins = 150;
+
+
+// Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
+const int startpos_methode=5;
+//falls aus Datei: Name der Datei
+const string startpos_dateiname="startpos.txt";
+
+//falls Positionen in Datei geschrieben werden: Name der Datei
+const string pos_output_dateiname="pos.txt";
+
+
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
 
