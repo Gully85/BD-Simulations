@@ -1,6 +1,6 @@
 # Variablen
 
-FLAGS_IMMER = -lfftw3 -lm -std=c++11
+FLAGS_IMMER = -I$$FFTW_INC_DIR -L$$FFTW_LIB_DIR -lfftw3 -lm -std=c++0x
 FLAGS_DEBUG = -O0 -g
 FLAGS_NORMAL = -O3
 

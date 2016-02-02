@@ -15,6 +15,7 @@ extern const double nachList_Breite;
 
 extern const string pos_output_dateiname;
 extern const string startpos_dateiname;
+extern const double startpos_kreisradius;
 
 
 
@@ -108,6 +109,9 @@ void init_allegleich(){
 	double x = zufall_gleichverteilt_vonbis(0.0,L);
 	double y = zufall_gleichverteilt_vonbis(0.0,L);
 	
+	x = 2.0;
+	y = 0.0;
+	
 	int jc = (int) x/nachList_Breite;
 	int kc = (int) y/nachList_Breite;
 	for(int i=0; i<N; i++){
@@ -118,17 +122,18 @@ void init_allegleich(){
 	}//for i
 }//void init_allegleich
 
-// initialisiert alle Teilchenpositionen auf (L/2, L/2), also alle am selben Ort
+// initialisiert alle Teilchenpositionen gleichverteilt in einem Kreis in der Mitte der Box
 void init_kreisscheibe(){
-	
+	const double rad = startpos_kreisradius;
+	const double rad2 = rad*rad;
 // 	double x=2.0;
 // 	double y=2.0;
 	for(int i=0; i<N; i++){
 		double x,y;
 		do{
-			x = zufall_gleichverteilt_vonbis(-15.0,15.0);
-			y = zufall_gleichverteilt_vonbis(-15.0,15.0);
-		} while (x*x + y*y > 225.0);
+			x = zufall_gleichverteilt_vonbis(-rad,rad);
+			y = zufall_gleichverteilt_vonbis(-rad,rad);
+		} while (x*x + y*y > rad2);
 		x+= 0.5*L;
 		y+= 0.5*L;
 

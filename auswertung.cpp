@@ -1,3 +1,4 @@
+			
 //stellt Methoden bereit, die in der Auswertung benutzt werden
 
 #pragma once
@@ -5,6 +6,7 @@
 #include "parameter.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <fftw3.h>
 
 
 extern const double korr_dr;
@@ -15,41 +17,60 @@ extern const double obs_dt;
 extern const int obs_anzahl;
 extern const int runs;
 
+extern const double dq;
+extern const double dq_rhoFFTW;
+extern const double dq_dqFT;
+extern const int rhoFFTW_bins;
+extern const int densGrid_Zellen;
+const int Z = densGrid_Zellen;
+extern const int densGrid_Schema;
+
 extern int** r_git;
 extern double** r_rel;
 extern const double nachList_Breite;
 extern const int N;
 
-
-using std::vector;
-
-
-//Paarkorrelationsfunktion. Erster Index Durchlauf, zweiter Index Zeit in Einheiten obs_dt, dritter Index r in Einheiten korr_dr
-vector<double>** g11 = NULL;
-// vector<vector<double> > g11;
-
-//Paarkorrelationsfunktion, über Runs gemittelt. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-vector<double>* g11_mittel = NULL;
-
-//Fehlerbalken Paarkorrelationsfunktion, über Runs gemittelt. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-vector<double>* g11_fehler = NULL;
+extern const bool auswerten_rhoFT_normjerun;
 
 
-vector<double>* ftrho_re_mittel;
-vector<double>* ftrho_re_fehler;
+using std::vector; using std::cout; using std::endl;
 
-//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index q (nachschlagen in order[] und qabs2[])
-vector<double>** ftrho_re = NULL;
-vector<double>** ftrho_im = NULL;
-
-//Hilfsfelder für fouriertransformierte Dichte
-vector<int> ftrho_order;
-vector<int> ftrho_qabs2;
-vector<int> ftrho_beitraege;
+//semi-globale Variablen, sichtbar für die Methoden in dieser Datei. Namespace=Dateiname.
+namespace auswertung{
+	//Paarkorrelationsfunktion. Erster Index Durchlauf, zweiter Index Zeit in Einheiten obs_dt, dritter Index r in Einheiten korr_dr
+	vector<double>** g11 = NULL;
+	// vector<vector<double> > g11;
 
 
+	//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index q (nachschlagen in order[] und qabs2[])
+	vector<double>** ftrho_re = NULL;
+	vector<double>** ftrho_im = NULL;
+
+	//Hilfsfelder für fouriertransformierte Dichte
+	vector<int> ftrho_order;
+	vector<int> ftrho_qabs2;
+	vector<int> ftrho_beitraege;
+
+
+
+	//Dichte nach Density-Gridding für rho(k) via FFTW. Muss (datei-)global sein, weil FFT vorab geplant wird.
+	fftw_complex* rhox = NULL; //Ortsraum. Index-Wrapping.
+	fftw_complex* rhok = NULL; //k-Raum. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
+
+	//Fouriertransformierte Dichte, berechnet via FFTW. Erster Index Durchlauf, zweiter Index obs/dt, dritter Index q/dq_rhoFFTW. Kein Index-Wrapping, Verschiebung oder Vorzeichen. Binning.
+	vector<double>** rhoFFTW_re = NULL;
+	vector<double>** rhoFFTW_im = NULL;
+	
+	//zaehlt für jeden Bin mit, wie viele k drinliegen
+	int* rhoFFTW_beitraege;
+	
+	//speichert je run das rhoFFTW zur Zeit t=0.
+
+	fftw_plan rhoFFTW_plan = NULL;
+}//namespace auswertung
 
 void init_korrelationsfunktion(){
+	using namespace auswertung;
 	
 	if(g11 != NULL) return;
 	
@@ -63,6 +84,7 @@ void init_korrelationsfunktion(){
 
 //Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
 void record_korrelationsfunktion(int ar, int t){
+	using namespace auswertung;
 	
 	//Nullen
 	g11[ar][t].assign(korr_bins, 0.0); //Nullen an alle Stellen
@@ -90,8 +112,36 @@ void record_korrelationsfunktion(int ar, int t){
 	
 }//void record_korrelationsfunktion
 
+// Korrelationsfunktion auswerten: Mittelung, Fehlerbalken berechnen und alles in Datei schreiben
+void auswerten_korrelationsfunktion(){
+	using namespace auswertung;
+	
+	vector<double>* g11_mittel = new vector<double>[obs_anzahl];
+	vector<double>* g11_fehler = new vector<double>[obs_anzahl];
+	
+	//berechne Mittelwerte und Fehler. Schreibe diese in g11_mittel und g11_fehler
+	statistik_1(g11, g11_mittel, g11_fehler, obs_anzahl);
+	
+	//schreibe in Datei
+	FILE* out = fopen("g11.txt", "w");
+	fprintf(out, "# Format: r TAB t TAB g11(r,t) TAB Fehlerbalken\n");
+
+	for(int j=0; j<obs_anzahl; j++){
+		double t = j*obs_dt;
+		
+		for(int i=0; i<korr_bins; i++){
+			double r = i*korr_dr;
+			fprintf(out, "%g \t %g \t %g \t %g \n", r, t, g11_mittel[j][i], g11_fehler[j][i]);
+		}//for i bis korr_bins
+		fprintf(out, "\n");
+	}//for j bis obs_anzahl
+}//void auswerten_korrelationsfunktion
+
+
+
 
 void init_ftrho(){
+	using namespace auswertung;
 	
 	if(ftrho_re != NULL) return;
 	
@@ -133,6 +183,7 @@ void init_ftrho(){
 
 //schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
 void record_ftrho_unkorrigiert(int ar, int t){
+	using namespace auswertung;
 	
 	//Vektor auf richtige Länge bringen, Nullen reinschreiben
 	ftrho_re[ar][t].assign(ftrho_qabs2.size(), 0.0);
@@ -169,14 +220,16 @@ void record_ftrho_unkorrigiert(int ar, int t){
 	}//for i,j
 }//void record_ftrho
 
-// FTrho auswerten: ruft korrigiere() und statistik() auf und schreibt Mittelwerte/Fehlerbalken in Datei. WIP
+// FTrho auswerten: ruft korrigiere() und statistik() auf und schreibt Mittelwerte/Fehlerbalken in Datei. 
 void auswerten_ftrho(){
+	
+	using namespace auswertung;
 	
 	korrigiere_ftrho();
 	
 	//erster Index Zeit, zweiter Index q-Werte nachschlagen in qabs2
-	ftrho_re_mittel = new vector<double>[obs_anzahl];
-	ftrho_re_fehler = new vector<double>[obs_anzahl];
+	vector<double>* ftrho_re_mittel = new vector<double>[obs_anzahl];
+	vector<double>* ftrho_re_fehler = new vector<double>[obs_anzahl];
 	vector<double>* ftrho_im_mittel = new vector<double>[obs_anzahl];
 	vector<double>* ftrho_im_fehler = new vector<double>[obs_anzahl];
 	
@@ -186,13 +239,19 @@ void auswerten_ftrho(){
 	
 	
 	FILE* out = fopen("ftrho.txt", "w");
-	fprintf(out, "# Format: q TAB t TAB re(rhotilde) TAB Fehler davon TAB im(rhotilde) TAB Fehler davon \n\n");
+	fprintf(out, "# Format: q TAB t TAB re(rhotilde) TAB Fehler davon TAB im(rhotilde) TAB Fehler davon TAB abs TAB fehler davon \n\n");
 	for(int j=0; j<obs_anzahl; j++){ // j läuft durch die Zeit, dh t in Einheiten obs_dt
 		double t = j*obs_dt;
 		for(int i=0; i<ftrho_re[0][0].size(); i++){ // i läuft durch die q-Werte
 		
 			double q = ftrho_dq*sqrt(ftrho_qabs2[i]);
-			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", q, t, ftrho_re_mittel[j][i], ftrho_re_fehler[j][i], ftrho_im_mittel[j][i], ftrho_im_fehler[j][i]);
+			
+			double re = ftrho_re_mittel[j][i];
+			double im = ftrho_im_mittel[j][i];
+			double refehler = ftrho_re_fehler[j][i];
+			double imfehler = ftrho_im_fehler[j][i];
+			
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \t %g \t %g \n", q, t, re, refehler, im, imfehler, sqrt(re*re+im*im), sqrt(refehler*refehler+imfehler*imfehler) );
 		}// for j, Zeit
 	}//for i, q-Werte
 	
@@ -205,6 +264,7 @@ void auswerten_ftrho(){
 
 //dividiert Korrekturen aus ftrho raus. Für alle runs und obs_anzahl, nur einmal aufrufen
 void korrigiere_ftrho(){
+	using namespace auswertung;
 	for(int ar=0; ar<runs; ar++)
 	for(int t=0; t<obs_anzahl; t++){
 		double faktor = 1.0;
@@ -226,18 +286,257 @@ int suche(int a, vector<int> v){
 		
 }//int suche
 
-//berechnet Mittelwerte und Varianzen von input[][][]. Mittelung über den ersten Index, der bis runs geht. Der zweite geht bis anzahl.
+
+
+
+
+
+//reserviere Speicher und plane FFTs für rho(k) via FFTW. Variable vector<double>rhoFFTW[run][t][k/dq_rhoFFTW]
+void init_rhoFFTW(){
+	using namespace auswertung;
+	
+	if(NULL != rhoFFTW_re) return;
+	
+	//// reserviere Speicher
+	
+	// Dichte nach Density-Gridding
+	rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+	rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
+		
+	// Hier steht das berechnete rho(k) drin. Erster Index Durchlauf, zweiter Index t/obs_dt, dritter Index q/dq_rhoFFTW
+	rhoFFTW_re = new vector<double>*[runs];
+	rhoFFTW_im = new vector<double>*[runs];
+	for(int i=0; i<runs; i++){
+		rhoFFTW_re[i] = new vector<double>[obs_anzahl];
+		rhoFFTW_im[i] = new vector<double>[obs_anzahl];
+		
+	}//for i bis runs
+	
+	
+	
+	//Imaginärteil von rhox auf Null setzen, der wird sich nie ändern
+	for(int i=0; i<Z; i++)
+	for(int j=0; j<Z; j++)
+		rhox[iw(i,j)][1] = 0.0;
+	
+	rhoFFTW_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD, FFTW_PATIENT);
+	
+	const int rhoFFTW_bins = 0.5*Z*dq_dqFT;
+	rhoFFTW_beitraege = new int[rhoFFTW_bins];
+	for(int i=0; i<rhoFFTW_bins; i++){
+		rhoFFTW_beitraege[i]=0;
+	}//for i
+	
+	//*
+	//herausfinden, wie viele |k| in jedem Bin landen werden.
+	for(int i=0; i<Z; i++){
+		double x_dq = ((i+Z/2)%Z - Z/2);
+		for(int j=0; j<Z; j++){
+			double y_dq = ((j+Z/2)%Z - Z/2);
+			
+			int bin = (int)(dq_dqFT * sqrt(x_dq*x_dq + y_dq*y_dq) + 0.5);
+			if(bin < 0 || bin > rhoFFTW_bins){
+				//cout << "Fehler: Index " << bin << " out of bounds! Nur 0 bis " << rhoFFTW_bins-1 << "zulässig!" << endl;
+				continue;
+			}//if out of bounds
+			rhoFFTW_beitraege[bin]++;
+		}//for j
+	}//for i
+	
+	/* Test: Feldgröße und beitraege auf Konsole ausgeben
+	cout << "rhoFFTW wird in  " << rhoFFTW_bins << " Bins einsortiert." << endl;
+	cout << "dq="<<dq<< ", dq_FFT="<<dq_rhoFFTW<< endl;
+	
+	cout << "Anzahl Beiträge je Bin:" << endl;
+	for(int i=0; i<rhoFFTW_bins; i++){
+		cout << rhoFFTW_beitraege[i] << "  ";
+		
+	}//for i bis rhoFFTW_bins
+	cout << endl;
+	// */
+	
+}//void init_rhoFFTW
+
+//berechnet aktuelles rho(k) via FFTW, schreibt es in rhoFFTW[ar][t][.]
+void record_rhoFFTW(int run, int t){
+	
+	using namespace auswertung;
+	
+	//Density-Gridding, dh berechne aus Teilchenpositionen eine kontinuierliche Dichte
+	switch(densGrid_Schema){
+		case 0: gridDensity_NGP(rhox, r_git, r_rel); break;
+		case 1: gridDensity_CIC(rhox, r_git, r_rel); break;
+		case 2: gridDensity_TSC(rhox, r_git, r_rel); break;
+		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
+	}//switch
+	
+	//FFT ausführen
+	fftw_execute(rhoFFTW_plan);
+	//jetzt steht in fftw_complex* rhok die fouriertransformierte Dichte. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
+	
+	//Vorzeichen korrigieren
+	for(int i=0; i<Z; i++)
+	for(int j=0; j<Z; j++)
+		if((i+j) % 2 == 1){ //falls i+j ungerade ist, Vorzeichen wechseln
+			rhok[iw(i,j)][0] *= -1.0; //re
+			rhok[iw(i,j)][1] *= -1.0; //im
+		}//if i+j ungerade
+	
+	//Binning, dabei Verschiebung und Index-Wrapping berücksichtigen. TODO vorerst 2dim ohne Binning, später besser machen!
+	rhoFFTW_re[run][t].assign(rhoFFTW_bins, 0.0);
+	rhoFFTW_im[run][t].assign(rhoFFTW_bins, 0.0);
+	
+	for(int i=0; i<Z; i++){
+		double x_dq = ((i+Z/2)%Z - Z/2);
+		for(int j=0; j<Z; j++){
+			double y_dq = ((j+Z/2)%Z - Z/2);
+			
+			int bin = (int)(dq_dqFT * sqrt(x_dq*x_dq + y_dq*y_dq) + 0.5);
+			if(bin < 0 || bin > rhoFFTW_bins){
+				//cout << "Fehler: Index " << bin << " out of bounds! Nur 0 bis " << rhoFFTW_bins-1 << "zulässig!" << endl;
+				continue;
+			}//if out of bounds
+			
+			rhoFFTW_re[run][t][bin] += rhok[iw(i,j)][0];
+			rhoFFTW_im[run][t][bin] += rhok[iw(i,j)][1];
+		}//for j
+	}//for i
+	
+	//Skalierung richtig machen: Faktor Z^2/L^2 rausdividieren
+	for(int i=0; i<rhoFFTW_bins; i++){
+		rhoFFTW_re[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+		rhoFFTW_im[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+
+	}//for i
+	
+	
+	
+}//void record_rhoFFTW
+
+//berechnet Mittelwerte und Fehler von rhoFFT, schreibt in Datei rhoFFT.txt
+void auswerten_rhoFFTW(){
+	
+	using namespace auswertung;
+	//erster Index: t/obs_dt, zweiter Index: q/dq
+	vector<double>* rhoFFT_re_mittel = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_re_fehler = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_im_mittel = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_im_fehler = new vector<double>[obs_anzahl];
+	
+	//berechne Mittelwerte und Fehler, Real- und Imaginärteil einzeln
+	statistik_1(rhoFFTW_re, rhoFFT_re_mittel, rhoFFT_re_fehler, obs_anzahl);
+	statistik_1(rhoFFTW_im, rhoFFT_im_mittel, rhoFFT_im_fehler, obs_anzahl);
+	
+	FILE* out = fopen("rhoFFT.txt", "w");
+	fprintf(out, "#Format: q TAB t TAB rho_re TAB Fehler davon TAB rho_im TAB Fehler davon TAB rho_abs TAB Fehler davon\n");
+	
+	for(int t_int=0; t_int<obs_anzahl; t_int++){
+	
+		for(int i=0; i<rhoFFTW_bins; i++){
+		
+			//q = dq*((k+(int)(0.5*N))%N - 0.5*N);
+			double q = dq_rhoFFTW*i;
+			
+			double re = rhoFFT_re_mittel[t_int][i];
+			double refehler = rhoFFT_re_fehler[t_int][i];
+			double im = rhoFFT_im_mittel[t_int][i];
+			double imfehler = rhoFFT_im_fehler[t_int][i];
+			
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \t %g \t %g \n", q, t_int*obs_dt, re, refehler, im, imfehler, sqrt(re*re+im*im), sqrt(refehler*refehler+imfehler*imfehler));
+		
+			fprintf(out, "\n");
+		}//for i
+		fprintf(out, "\n");
+	}//for t_int
+	
+	
+	delete[] rhoFFT_re_mittel;
+	delete[] rhoFFT_re_fehler;
+	delete[] rhoFFT_im_mittel;
+	delete[] rhoFFT_im_fehler;
+	
+	if(auswerten_rhoFT_normjerun) auswerten_rhoFFTW_normjerun();
+	
+}//void auswerten_rhoFFTW
+
+//berechnet eine Variante von rhoFFT, bei der zuerst jeder Run mit seinem Startwert normiert wird und dann erst über Runs gemittelt. Schreibt in rhoFFTW_re und _im
+void auswerten_rhoFFTW_normjerun(){
+	
+	using namespace auswertung;
+	
+	/// EVTL: Erkenne, welche Werte ignoriert werden sollen, weil r(k,0) zu klein
+	
+	/// dividiere jeden Run mit seinem Startwert
+	//vector<double>rhoFFTWre[run][t][k/dq_rhoFFTW]
+	for(int run=0; run<runs; run++){
+		for(int i=0; i<rhoFFTW_re[0][0].size(); i++){
+			
+			double re_norm = 1.0/(rhoFFTW_re[run][0][i]); //eins durch rho(k,0) muss überall dranmultipliziert werden
+			double im_norm = 1.0/(rhoFFTW_im[run][0][i]);
+			
+			for(int t_int=0; t_int<obs_anzahl; t_int++){
+				rhoFFTW_re[run][t_int][i] *= re_norm;
+				rhoFFTW_im[run][t_int][i] *= im_norm;
+			}//for i
+		}//for t_int
+		
+	}//for run
+	
+	// werte normalisierte Runs aus wie oben
+	vector<double>* rhoFFT_re_mittel = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_im_mittel = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_re_fehler = new vector<double>[obs_anzahl];
+	vector<double>* rhoFFT_im_fehler = new vector<double>[obs_anzahl];	
+	
+	//berechne Mittelwerte und Fehler, Real- und Imaginärteil einzeln
+	statistik_1(rhoFFTW_re, rhoFFT_re_mittel, rhoFFT_re_fehler, obs_anzahl);
+	statistik_1(rhoFFTW_im, rhoFFT_im_mittel, rhoFFT_im_fehler, obs_anzahl);
+	
+	FILE* out = fopen("rhoFFT_njr.txt", "w");
+	
+	fprintf(out, "#Format: q TAB t TAB re TAB fehler TAB im TAB fehler TAB abs TAB fehler \n \n");
+	
+	for(int t_int=0; t_int<obs_anzahl; t_int++){
+		double t = t_int*obs_dt;
+		
+		for(int k=0; k<rhoFFTW_bins; k++){
+			double q = k*dq_rhoFFTW;
+			
+			double re = rhoFFT_re_mittel[t_int][k];
+			double im = rhoFFT_im_mittel[t_int][k];
+			double refehler = rhoFFT_re_fehler[t_int][k];
+			double imfehler = rhoFFT_im_fehler[t_int][k];
+			
+			double abs = sqrt(re*re + im*im);
+			double absfehler = sqrt(refehler*refehler + imfehler*imfehler);
+			
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \t %g \t %g \n", q, t, re, refehler, im, imfehler, abs, absfehler);
+			
+		}//for k
+		fprintf(out, "\n");
+	}//for t_int
+	
+	fclose(out);
+}//void auswerten_rhoFFTW_normjerun
+
+
+
+
+//berechnet Mittelwerte und Varianzen von input[][][]. Mittelung über den ersten Index, der bis runs geht. Der zweite geht bis anzahl. mittelwerte und varianzen müssen schon (leer) initialisiert sein.
 void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<double>*& varianzen, int anzahl){
 	int ar; //aktueller run
 	int i; // aktuelle Stelle im vector, vorletzter index
 	int j; // aktuelle Stelle im vector, letzter Index
 	
+	
+	/*
 	//erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
 	if(mittelwerte == NULL){
 		mittelwerte = new vector<double>[anzahl];
 		varianzen = new vector<double>[anzahl];
 	}//if mittelwerte==NULL
 	else cout << "Warnung: statistik_1() aufgerufen, Ergebnisvektoren schon benutzt!" << std::endl;
+	// */
 	
 	for(i=0; i<anzahl; i++){ //zweiter Index im Input, erster in mittelwerte
 		for(j=0; j<input[0][0].size(); j++){ //dritter Index im Input, zweiter in Mittelwerte
@@ -260,27 +559,6 @@ void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<d
 	}//for i, zweiter Index im Input bzw erster in mittelwerte
 	
 }//void statistik_1
-
-// Korrelationsfunktion auswerten: Mittelung, Fehlerbalken berechnen und alles in Datei schreiben
-void auswerten_korrelationsfunktion(){
-	
-	//berechne Mittelwerte und Fehler. Schreibe diese in g11_mittel und g11_fehler
-	statistik_1(g11, g11_mittel, g11_fehler, obs_anzahl);
-	
-	//schreibe in Datei
-	FILE* out = fopen("g11.txt", "w");
-	fprintf(out, "# Format: r TAB t TAB g11(r,t) TAB Fehlerbalken\n");
-
-	for(int j=0; j<obs_anzahl; j++){
-		double t = j*obs_dt;
-		
-		for(int i=0; i<korr_bins; i++){
-			double r = i*korr_dr;
-			fprintf(out, "%g \t %g \t %g \t %g \n", r, t, g11_mittel[j][i], g11_fehler[j][i]);
-		}//for i bis korr_bins
-		fprintf(out, "\n");
-	}//for j bis obs_anzahl
-}//void auswerten_korrelationsfunktion
 
 
 

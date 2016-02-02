@@ -19,15 +19,17 @@ using std::vector;
 
 extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
 extern const int densGrid_Zellen, densGrid_Schema;
+extern const int N;
 extern int** r_git;
 extern double** r_rel;
 
 extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
 
-const int Z = densGrid_Zellen;
+
 const double dx = densGrid_Breite;
 
-/// semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei
+/// semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei. Namespace = Dateiname
+namespace dynamik_methoden{
 fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
 fftw_complex* rhok = NULL; // Dichte nach Fouriertrafo FORWARD. Index-Wrapping, Verschiebung und alternierende Vorzeichen
 double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung
@@ -37,20 +39,24 @@ fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 vector<int>** erwNachbarn = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
+
 double** Fkap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 double** F_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 double** F_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 
-
+const int Z = densGrid_Zellen;
 
 fftw_plan forward_plan=NULL;
 fftw_plan backx_plan=NULL;
 fftw_plan backy_plan=NULL;
-
+}//namespace dynMeth
 
 
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
 double zeitschritt(double tmax){ 
+	
+	using namespace dynamik_methoden;
+	
 	double deltat=tmax; //tatsaechliche Dauer. Koennte kleiner werden als tmax
 	
 	if(tmax <= 0.0){
@@ -148,7 +154,7 @@ double zeitschritt(double tmax){
 
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(){
-
+	using namespace dynamik_methoden;
 	//vector<int>** erwNachbarn ist die erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
 
 	
@@ -191,7 +197,7 @@ void WCA_init(){
 
 //initialisiert Felder, plant Fouriertrafos
 void kapkraefte_init(){
-
+	using namespace dynamik_methoden;
 /// alloziere Felder
 	//Dichte vor FFT. Index-Wrapping. rhox[iw(j,k)][0] ist die Dichte in Zelle (j,k). rhox[][1] ist der Imaginaerteil, Null.
 	if(rhox == NULL){
@@ -239,15 +245,16 @@ void kapkraefte_init(){
 	
 /// plane FFTs
 	if(forward_plan == NULL){
-		forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_MEASURE);
-		backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_MEASURE);
-		backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_MEASURE);
+		forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_PATIENT);
+		backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_PATIENT);
+		backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_PATIENT);
 	}//if forward_plan==NULL
 }//void kapkraefte_init
 
 
 // berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
 void berechne_WCAkraefte(double** F_WCA){
+	using namespace dynamik_methoden;
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
 	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
@@ -322,6 +329,8 @@ void berechne_WCAkraefte(double** F_WCA){
 
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
 void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
+	
+	using namespace dynamik_methoden;
 	int j,l;
 	double x,y;
 
@@ -382,9 +391,15 @@ void berechne_zufallskraefte(int anzahl, double** dn){
 
 //reserviere Speicher, setze Teilchen auf Startpositionen, rufe andere init() auf.
 void main_init(){
+	
+	using namespace dynamik_methoden;
+	
+	ausgabe_jeansgroessen();
 
 	init_korrelationsfunktion();
-
+	init_ftrho();  //Observable rho(k), berechnet via Summe über Teilchen und über Gitter im k-Raum
+	init_rhoFFTW();//Observable rho(k), berechnet via density-Gridding und FFTW 
+	
 	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
 	if(r_git == NULL){
 		r_git = new int*[N];
@@ -427,8 +442,8 @@ void main_init(){
 			init_kreisscheibe();
 			break;
 		default:
-			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3" << endl;
-			break;
+			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5" << endl;
+			return;
 	}//switch startpos_methode
 	
 	
@@ -439,11 +454,10 @@ void main_init(){
 }//void main_init
 
 
-
-
-
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k){
+	using namespace dynamik_methoden;
+	
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
 	if(j==0 && k==0 && lambda_kapillar>0.2*L) return 0.0;
@@ -500,7 +514,7 @@ double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, do
 		
 		// x-Komponente
 		double F = F_WCA[teilchen][0] + Fkap[teilchen][0];
-		if(F < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
 			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][0]*F_noise[teilchen][0]));
 		else{
 			double u = F_noise[teilchen][0]*sqrt(0.5*T)/F;
@@ -513,7 +527,7 @@ double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, do
 		
 		// y-Komponente
 		F = F_WCA[teilchen][1] + Fkap[teilchen][1];
-		if(F < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
 			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][1]*F_noise[teilchen][1]));
 		else{
 			double u = F_noise[teilchen][1]*sqrt(0.5*T)/F;

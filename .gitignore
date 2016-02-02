@@ -4,4 +4,4 @@ a.out
 *.txt
 ./test_laplace/*.txt
 tmp/
-
+linearStability/

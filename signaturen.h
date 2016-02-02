@@ -24,6 +24,9 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
 void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel); 
 
+//schreibt Jeans-Zeit und Jeans-Länge in cout
+void ausgabe_jeansgroessen();
+
 //reserviere Speicher und setze Teilchen auf Startpositionen
 void main_init();
 // initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt in r_git und r_rel
@@ -61,13 +64,20 @@ double G(int j, int k);
 void init_korrelationsfunktion();//void init_korrelationsfunktion
 //reserviere Speicher und vorab-Berechnungen für fouriertransformierte Dichte
 void init_ftrho();
+//reserviere Speicher und plane FFTs für rho(k) via FFTW. Variable vector<double>rhoFFTW[run][t][k/dq].
+void init_rhoFFTW(); 
 //schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
 void record_ftrho_unkorrigiert(int ar, int t);
+//berechnet aktuelles rho(k) via FFTW, schreibt es in rhoFFTW[ar][t][.]
+void record_rhoFFTW(int run, int t);
 //dividiert Korrekturen aus ftrho raus
 void korrigiere_ftrho();
 //ruft korrigiere() und statistik() auf und schreibt Ergebnisse in Datei. 
 void auswerten_ftrho();
-
+//berechnet Mittelwerte und Fehler von rhoFFT, schreibt in Datei rhoFFT.txt
+void auswerten_rhoFFTW();
+//berechnet eine Variante von rhoFFT, bei der zuerst jeder Run mit seinem Startwert normiert wird und dann erst über Runs gemittelt. Schreibt in rhoFFTW_re und _im
+void auswerten_rhoFFTW_normjerun();
 
 
 //suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück

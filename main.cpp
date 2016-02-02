@@ -26,13 +26,18 @@ extern const int nachList_Zellen;
 extern const double nachList_Breite;
 
 extern const double lambda_kapillar;
+extern const double kapillar_vorfaktor;
+extern const double T;
+
 
 extern const int obs_anzahl;
 extern const double obs_dt;
 
 extern const int runs;
 
-
+extern const bool auswerten_korrfunk;
+extern const bool auswerten_rhovonk;
+extern const bool auswerten_rhoviaFFTW;
 
 /// Globale Felder. Mit Null initialisiert.
 
@@ -54,41 +59,43 @@ int main(){
 /*/
 for(int run=0; run<runs; run++){
 	main_init();
-	
-	init_ftrho();
-	record_ftrho_unkorrigiert(0,0); //Parameter: run und Zeit
-	auswerten_ftrho();
-	
-	pos_schreiben();
-	
-	return 0;
-	
-	
+	int schritte_im_run=0;
 	
 	cout << "run nr " << run << endl;
 	
-	cout << "record obs-Punkt 0 von " << obs_anzahl << endl;
-	record_korrelationsfunktion(run, 0);
+	cout << "record obs-Punkt 1 von " << obs_anzahl << endl;
+	if (auswerten_korrfunk) record_korrelationsfunktion(run, 0);
+	if (auswerten_rhovonk) record_ftrho_unkorrigiert(run, 0);
+	if (auswerten_rhoviaFFTW) record_rhoFFTW(run, 0);
+	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
 		double t=0.0;
 		
+		int schritte_seit_stop = 0;
 		//Zeitschritte bis t=obs_dt
 		while(t < obs_dt){
 			t += zeitschritt(obs_dt-t);
+			schritte_im_run++;
+			schritte_seit_stop++;
 // 			cout << "t="<<t<<endl;
 		}//while obs-Punkt noch nicht erreicht
 		
-		cout << "record obs-Punkt " << obs_nr << " von " << obs_anzahl << endl;
-		record_korrelationsfunktion(run, obs_nr);
+		cout << "record obs-Punkt " << obs_nr+1 << " von " << obs_anzahl << endl;
+		cout << "Zeitschritte im run: " << schritte_im_run << ", das sind " << schritte_seit_stop << " seit dem letzten Stop." << endl;
+		if(auswerten_korrfunk) record_korrelationsfunktion(run, obs_nr);
+		if(auswerten_rhovonk) record_ftrho_unkorrigiert(run, obs_nr);
+		if(auswerten_rhoviaFFTW) record_rhoFFTW(run, obs_nr);
 	}//for obs_nr
 
 }//for run
 
 
 //Statistik, und Ergebnis in Datei schreiben
-auswerten_korrelationsfunktion();
+if(auswerten_korrfunk) auswerten_korrelationsfunktion();
+if(auswerten_rhovonk) auswerten_ftrho();
+if(auswerten_rhoviaFFTW) auswerten_rhoFFTW();
 
-
+pos_schreiben();
 // */
 
 
@@ -98,6 +105,30 @@ return 0;
 
 
 
+//schreibt Jeans-Zeit und Jeans-Länge in cout
+void ausgabe_jeansgroessen(){
+	// tJ = 1/rho 1/(f^2/eps gamma)
+	
+	//Dichte
+	const double rho = N/(L*L);
+	//Jeans-Zeit
+	const double tJ = 1.0/(rho * kapillar_vorfaktor);
+	
+	//kritische Dichte, close packed HS in 2-dim
+	const double rho_c = 2.0/sqrt(3.0);
+	
+	
+	//der Ausdruck 1/wurzel(2rho_c^2/(rho-rho_c)^2 - 1), kommt in der Jeanslänge vor
+	const double lJ_faktor = 1.0/sqrt(2.0*rho_c/((rho-rho_c)*(rho-rho_c)) -1.0);
+	
+	const double kJ = lJ_faktor*sqrt(rho*kapillar_vorfaktor/T);
+
+	cout << "Jeans-Zeit: \t" << tJ << endl;
+	cout << "Jeans-Wellenzahl:\t" << kJ << endl;
+	cout << "Faktor in kJ: \t" << lJ_faktor << endl << endl;
+	
+	
+}//void ausgabe_jeansgroessen
 
 
 

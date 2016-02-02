@@ -12,6 +12,6 @@ a = 15.0
 
 
 
-rho1 = N/(400*pi)
+rho1 = N/(a*a*pi)
 
 plot 'ftrho.txt' using 1:3 title 're', 'ftrho.txt' using 1:5 title 'im', rho1*2*pi*a*a*besj1(x*a)/(x*a)
