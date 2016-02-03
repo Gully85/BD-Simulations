@@ -16,7 +16,7 @@ using std::cout; using std::endl; using std::flush; using std::vector; using std
 
 
 // importiere Variablen aus parameter.h, siehe dort, was die Variable tut.
-extern const int N;
+extern const int N1;
 extern const double L;
 
 extern const int densGrid_Schema, densGrid_Zellen;
@@ -35,16 +35,20 @@ extern const double obs_dt;
 
 extern const int runs;
 
-extern const bool auswerten_korrfunk;
-extern const bool auswerten_rhovonk;
-extern const bool auswerten_rhoviaFFTW;
+extern const bool auswerten_korrfunk1;
+extern const bool auswerten_rho1vonk;
+extern const bool auswerten_rho1viaFFTW;
 
 /// Globale Felder. Mit Null initialisiert.
 
-// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
-int** r_git = NULL;
+// Teilchenpositionen Typ 1, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
+int** r1_git = NULL;
 // dasgleiche, Vektor innerhalb der Zelle
-double** r_rel = NULL;
+double** r1_rel = NULL;
+
+//dasgleiche für Typ 2
+int** r2_git = NULL;
+double** r2_rel = NULL;
 
 
 
@@ -64,9 +68,9 @@ for(int run=0; run<runs; run++){
 	cout << "run nr " << run << endl;
 	
 	cout << "record obs-Punkt 1 von " << obs_anzahl << endl;
-	if (auswerten_korrfunk) record_korrelationsfunktion(run, 0);
-	if (auswerten_rhovonk) record_ftrho_unkorrigiert(run, 0);
-	if (auswerten_rhoviaFFTW) record_rhoFFTW(run, 0);
+	if (auswerten_korrfunk11) record_korrelationsfunktion11(run, 0);
+	if (auswerten_rho1vonk) record_ftrho1_unkorrigiert(run, 0);
+	if (auswerten_rho1viaFFTW) record_rho1FFTW(run, 0);
 	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
 		double t=0.0;
@@ -82,20 +86,21 @@ for(int run=0; run<runs; run++){
 		
 		cout << "record obs-Punkt " << obs_nr+1 << " von " << obs_anzahl << endl;
 		cout << "Zeitschritte im run: " << schritte_im_run << ", das sind " << schritte_seit_stop << " seit dem letzten Stop." << endl;
-		if(auswerten_korrfunk) record_korrelationsfunktion(run, obs_nr);
-		if(auswerten_rhovonk) record_ftrho_unkorrigiert(run, obs_nr);
-		if(auswerten_rhoviaFFTW) record_rhoFFTW(run, obs_nr);
+		
+		if(auswerten_korrfunk11) record_korrelationsfunktion11(run, obs_nr);
+		if(auswerten_rho1vonk) record_ftrho1_unkorrigiert(run, obs_nr);
+		if(auswerten_rho1viaFFTW) record_rho1FFTW(run, obs_nr);
 	}//for obs_nr
 
 }//for run
 
 
 //Statistik, und Ergebnis in Datei schreiben
-if(auswerten_korrfunk) auswerten_korrelationsfunktion();
-if(auswerten_rhovonk) auswerten_ftrho();
-if(auswerten_rhoviaFFTW) auswerten_rhoFFTW();
+if(auswerten_korrfunk11) auswerten_korrelationsfunktion11();
+if(auswerten_rho1vonk) auswerten_ftrho1();
+if(auswerten_rho1viaFFTW) auswerten_rho1FFTW();
 
-pos_schreiben();
+pos_schreiben(); //schreibe Positionen am Ende des letzten Runs in Datei pos.txt
 // */
 
 
@@ -110,7 +115,7 @@ void ausgabe_jeansgroessen(){
 	// tJ = 1/rho 1/(f^2/eps gamma)
 	
 	//Dichte
-	const double rho = N/(L*L);
+	const double rho = N1/(L*L);
 	//Jeans-Zeit
 	const double tJ = 1.0/(rho * kapillar_vorfaktor);
 	
@@ -123,9 +128,9 @@ void ausgabe_jeansgroessen(){
 	
 	const double kJ = lJ_faktor*sqrt(rho*kapillar_vorfaktor/T);
 
-	cout << "Jeans-Zeit: \t" << tJ << endl;
+	cout << "Jeans-Zeit: \t\t" << tJ << endl;
 	cout << "Jeans-Wellenzahl:\t" << kJ << endl;
-	cout << "Faktor in kJ: \t" << lJ_faktor << endl << endl;
+	cout << "Faktor in kJ: \t\t" << lJ_faktor << endl << endl;
 	
 	
 }//void ausgabe_jeansgroessen
@@ -144,14 +149,14 @@ int iw(int i, int j){
 
 }//int index
 
-//berechnet das Quadrat des Abstands zwischen Teilchen i und Teilchen j (gleichen Typs). Berücksichtigt periodische Randbedingungen.
-double abstand2(int i, int j){
+//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.
+double abstand2_11(int i, int j){
 	
 	//Absolutpositionen
-	double xi_abs = r_git[i][0]*nachList_Breite + r_rel[i][0];
-	double xj_abs = r_git[j][0]*nachList_Breite + r_rel[j][0];
-	double yi_abs = r_git[i][1]*nachList_Breite + r_rel[i][1];
-	double yj_abs = r_git[j][1]*nachList_Breite + r_rel[j][1];
+	double xi_abs = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+	double xj_abs = r1_git[j][0]*nachList_Breite + r1_rel[j][0];
+	double yi_abs = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
+	double yj_abs = r1_git[j][1]*nachList_Breite + r1_rel[j][1];
 	
 	// dx^2, durch die periodischen Randbed gibt es drei Moeglichkeiten
 	double tmp1 = xi_abs - xj_abs;

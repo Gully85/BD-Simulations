@@ -19,9 +19,9 @@ using std::vector;
 
 extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
 extern const int densGrid_Zellen, densGrid_Schema;
-extern const int N;
-extern int** r_git;
-extern double** r_rel;
+extern const int N1;
+extern int** r1_git;
+extern double** r1_rel;
 
 extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
 
@@ -38,11 +38,11 @@ fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und
 fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
-vector<int>** erwNachbarn = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
+vector<int>** erwNachbarn1 = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
 
-double** Fkap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
-double** F_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
-double** F_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F1kap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F1_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F1_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 
 const int Z = densGrid_Zellen;
 
@@ -65,9 +65,9 @@ double zeitschritt(double tmax){
 	}//if tmax negativ, alles abbrechen
 	
 	//Berechne alle benoetigten Kraefte
-	berechne_WCAkraefte(F_WCA); //schreibt in F_WCA
-	berechne_kapkraefte(r_git, r_rel, Fkap);
-	berechne_zufallskraefte(N, F_noise);
+	berechne_WCAkraefte(); //schreibt in F_WCA
+	berechne_kapkraefte();
+	berechne_zufallskraefte(N1, F1_noise);
 	
 	/* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
 	for(int teilchen=0; teilchen<N; teilchen++){
@@ -76,29 +76,29 @@ double zeitschritt(double tmax){
 	// */
 	
 	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
-	deltat = optimaler_zeitschritt(F_WCA, Fkap, F_noise, deltat, N);
+	deltat = optimaler_zeitschritt(F1_WCA, F1kap, F1_noise, deltat, N1);
 	
 // 	cout << endl << "Zeitschritt: " << deltat << endl;
 	
 	//alle Teilchen bewegen
-	for(int teilchen=0; teilchen<N; teilchen++){
-		double dx = deltat * (F_WCA[teilchen][0] + Fkap[teilchen][0]) + sqrt(2.0*T*deltat)*F_noise[teilchen][0];
-		double dy = deltat * (F_WCA[teilchen][1] + Fkap[teilchen][1]) + sqrt(2.0*T*deltat)*F_noise[teilchen][1];
+	for(int teilchen=0; teilchen<N1; teilchen++){
+		double dx = deltat * (F1_WCA[teilchen][0] + F1kap[teilchen][0]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][0];
+		double dy = deltat * (F1_WCA[teilchen][1] + F1kap[teilchen][1]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][1];
 		
 		//* Test: dr ausgeben
 // 		cout << "Teilchen " << teilchen << ": dr=("<<dx<<","<<dy<<")"<< endl;
 		// */
 		
-		r_rel[teilchen][0] += dx;
-		r_rel[teilchen][1] += dy;
+		r1_rel[teilchen][0] += dx;
+		r1_rel[teilchen][1] += dy;
 		
 		
 		//ueber Zellgrenze bewegt?
-		if(r_rel[teilchen][0] < 0.0 || r_rel[teilchen][0] > nachList_Breite
-		|| r_rel[teilchen][1] < 0.0 || r_rel[teilchen][1] > nachList_Breite){
+		if(r1_rel[teilchen][0] < 0.0 || r1_rel[teilchen][0] > nachList_Breite
+		|| r1_rel[teilchen][1] < 0.0 || r1_rel[teilchen][1] > nachList_Breite){
 			//Indices der alten Zelle
-			int ic = r_git[teilchen][0];
-			int jc = r_git[teilchen][1];
+			int ic = r1_git[teilchen][0];
+			int jc = r1_git[teilchen][1];
 			
 			//Zellen, in denen das Teilchen bisher eingetragen war
 			int x[3]; int y[3];
@@ -112,21 +112,21 @@ double zeitschritt(double tmax){
 			//aus allen entfernen
 			for(int i=0; i<3; i++)
 			for(int j=0; j<3; j++)
-				erwListe_rem(erwNachbarn[x[i]][y[j]], teilchen);
+				erwListe_rem(erwNachbarn1[x[i]][y[j]], teilchen);
 			
 			//Indices der neuen Zelle. Koennen noch negative oder zu grosse Werte haben. floor() rundet auch negative Zahlen korrekt ab.
-			ic = (int) floor((r_git[teilchen][0]*nachList_Breite + r_rel[teilchen][0])/nachList_Breite);
-			jc = (int) floor((r_git[teilchen][1]*nachList_Breite + r_rel[teilchen][1])/nachList_Breite);
+			ic = (int) floor((r1_git[teilchen][0]*nachList_Breite + r1_rel[teilchen][0])/nachList_Breite);
+			jc = (int) floor((r1_git[teilchen][1]*nachList_Breite + r1_rel[teilchen][1])/nachList_Breite);
 			
 			// korrigiere negative bzw zu grosse Zellindices, durch period. Randbed.
 			ic = (ic+nachList_Zellen)%nachList_Zellen;
 			jc = (jc+nachList_Zellen)%nachList_Zellen;
 			
 			//trage neue Position in Gitter- und Relativvektor ein
-			r_rel[teilchen][0] = fmod(r_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
-			r_rel[teilchen][1] = fmod(r_rel[teilchen][1] + nachList_Breite, nachList_Breite);
-			r_git[teilchen][0] = ic;
-			r_git[teilchen][1] = jc;
+			r1_rel[teilchen][0] = fmod(r1_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r1_rel[teilchen][1] = fmod(r1_rel[teilchen][1] + nachList_Breite, nachList_Breite);
+			r1_git[teilchen][0] = ic;
+			r1_git[teilchen][1] = jc;
 			
 			//fuege Teilchen den neuen Nachbarlisten hinzu
 			//Zellen, in die das Teilchen eingetragen werden soll. ic,jc sind schon aktuell
@@ -139,7 +139,7 @@ double zeitschritt(double tmax){
 			
 			for(int i=0; i<3; i++)
 			for(int j=0; j<3; j++)
-				erwNachbarn[x[i]][y[j]].push_back(teilchen);
+				erwNachbarn1[x[i]][y[j]].push_back(teilchen);
 			
 			
 		}//if aus Zelle bewegt
@@ -159,24 +159,24 @@ void WCA_init(){
 
 	
 	//reserviere Speicher
-	if(erwNachbarn == NULL){
-		erwNachbarn = new vector<int>*[nachList_Zellen];
+	if(erwNachbarn1 == NULL){
+		erwNachbarn1 = new vector<int>*[nachList_Zellen];
 		for(int i=0; i<nachList_Zellen; i++){
-			erwNachbarn[i] = new vector<int>[nachList_Zellen];
+			erwNachbarn1[i] = new vector<int>[nachList_Zellen];
 		}//for i
 	}//if erwNachbarn==NULL
 	else
 		for(int i=0; i<nachList_Zellen; i++)
 		for(int j=0; j<nachList_Zellen; j++){
-			erwNachbarn[i][j].clear();
+			erwNachbarn1[i][j].clear();
 		}//for i,j
 	int* x = new int[3]; //links davon, exakt, rechts davon
 	int* y = new int[3];
 
 	//trage jedes Teilchen in seine Zelle, und die 8 Nachbarzellen ein
-	for(int teilchen=0; teilchen<N; teilchen++){
-		int k = r_git[teilchen][0];
-		int l = r_git[teilchen][1];
+	for(int teilchen=0; teilchen<N1; teilchen++){
+		int k = r1_git[teilchen][0];
+		int l = r1_git[teilchen][1];
 		
 		//ermittle beteiligte Zellen
 		x[0] = (k-1+nachList_Zellen)%nachList_Zellen;
@@ -189,7 +189,7 @@ void WCA_init(){
 		//fuege Teilchen diesen Zellen hinzu
 		for(int i=0;i<3;i++)
 		  for(int j=0;j<3;j++)
-		    erwNachbarn[x[i]][y[j]].push_back(teilchen);
+		    erwNachbarn1[x[i]][y[j]].push_back(teilchen);
 		
 	}//for teilchen
 
@@ -252,43 +252,43 @@ void kapkraefte_init(){
 }//void kapkraefte_init
 
 
-// berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
-void berechne_WCAkraefte(double** F_WCA){
+// berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]. TODO Signatur und Aufrufe korrigieren!
+void berechne_WCAkraefte(){
 	using namespace dynamik_methoden;
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
 	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
 
-	if(F_WCA == NULL){
+	if(F1_WCA == NULL){
 		cout << "Fehler: WCA-Kraefteberechnung aufgerufen, aber nicht initialisiert!" << endl;
 		return;
 	}//if nicht initialisiert
 
 	//setze F_WCA auf Null
-	for(i=0; i<N; i++){
-		F_WCA[i][0]=0.0;
-		F_WCA[i][1]=0.0;
+	for(i=0; i<N1; i++){
+		F1_WCA[i][0]=0.0;
+		F1_WCA[i][1]=0.0;
 	}//for
 	
 	//Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
-	for(i=0; i<N; i++){
-		int ic = r_git[i][0];
-		int jc = r_git[i][1];
+	for(i=0; i<N1; i++){
+		int ic = r1_git[i][0];
+		int jc = r1_git[i][1];
 		
-		for(j = erwNachbarn[ic][jc].begin(); j!=erwNachbarn[ic][jc].end(); j++){
+		for(j = erwNachbarn1[ic][jc].begin(); j!=erwNachbarn1[ic][jc].end(); j++){
 			if(i == *j) continue; //ueberspringe WW mit sich selbst
 			
 			//Abstand berechnen, mit periodischen Randbedingungen
-			a2 = abstand2(i, *j);
+			a2 = abstand2_11(i, *j);
 			
 			//falls zu weit entfernt, WW ueberspringen
 			if(a2 > zweihoch1_6*zweihoch1_6) continue;
 			
 			//Absolutkoordinaten
-			double x1 = r_git[ i][0]*nachList_Breite + r_rel[ i][0];
-			double y1 = r_git[ i][1]*nachList_Breite + r_rel[ i][1];
-			double x2 = r_git[*j][0]*nachList_Breite + r_rel[*j][0];
-			double y2 = r_git[*j][1]*nachList_Breite + r_rel[*j][1];
+			double x1 = r1_git[ i][0]*nachList_Breite + r1_rel[ i][0];
+			double y1 = r1_git[ i][1]*nachList_Breite + r1_rel[ i][1];
+			double x2 = r1_git[*j][0]*nachList_Breite + r1_rel[*j][0];
+			double y2 = r1_git[*j][1]*nachList_Breite + r1_rel[*j][1];
 			
 			double dx = x1-x2;
 			double dy = y1-y2;
@@ -316,8 +316,8 @@ void berechne_WCAkraefte(double** F_WCA){
 			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
 			
 			//addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
-			F_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
-			F_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
+			F1_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
+			F1_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
 			
 			
 			
@@ -327,8 +327,8 @@ void berechne_WCAkraefte(double** F_WCA){
 
 
 
-//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
-void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
+//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. TODO Übergabe oder global? TODO Signatur und Aufrufe korrigieren!
+void berechne_kapkraefte(){
 	
 	using namespace dynamik_methoden;
 	int j,l;
@@ -336,9 +336,9 @@ void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
 
 /// Density-Gridding: Schreibe Dichte in rhox[][0]
 	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, rr_git, rr_rel); break;
-		case 1: gridDensity_CIC(rhox, rr_git, rr_rel); break;
-		case 2: gridDensity_TSC(rhox, rr_git, rr_rel); break;
+		case 0: gridDensity_NGP(rhox, 1.0); break; //TODO gridDensity auf global umstellen, namespace nutzen
+		case 1: gridDensity_CIC(rhox, 1.0); break;
+		case 2: gridDensity_TSC(rhox, 1.0); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
@@ -364,9 +364,9 @@ void berechne_kapkraefte(int** rr_git, double** rr_rel, double** Fkap){
 
 /// inverse Density-Gridding: Schreibe Kraefte in Fkap
 	switch(densGrid_Schema){
-		case 0: inv_gridDensity_NGP(Fkap, Fx, Fy, rr_git, rr_rel); break;
-		case 1: inv_gridDensity_CIC(Fkap, Fx, Fy, rr_git, rr_rel); break;
-		case 2: inv_gridDensity_TSC(Fkap, Fx, Fy, rr_git, rr_rel); break;
+		case 0: inv_gridDensity_NGP(); break; //TODO inv_gridDensity auf global umstellen, namespace nutzen
+		case 1: inv_gridDensity_CIC(); break;
+		case 2: inv_gridDensity_TSC(); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
@@ -401,29 +401,29 @@ void main_init(){
 	init_rhoFFTW();//Observable rho(k), berechnet via density-Gridding und FFTW 
 	
 	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
-	if(r_git == NULL){
-		r_git = new int*[N];
+	if(r1_git == NULL){
+		r1_git = new int*[N1];
 		// dasgleiche, Vektor innerhalb der Zelle
-		r_rel = new double*[N];
-		for(int i=0; i<N; i++){
-			r_git[i] = new int[2];
-			r_rel[i] = new double[2];
+		r1_rel = new double*[N1];
+		for(int i=0; i<N1; i++){
+			r1_git[i] = new int[2];
+			r1_rel[i] = new double[2];
 		}//for i
 	}//if r_git == NULL
 	
 	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
-	if(Fkap == NULL){
-		Fkap = new double*[N];
+	if(F1kap == NULL){
+		F1kap = new double*[N1];
 		//WCA-Kraefte, gleiche Indices
-		F_WCA= new double*[N];
+		F1_WCA= new double*[N1];
 		//Zufallskraefte, gleiche Indices
-		F_noise = new double*[N];
-		for(int i=0; i<N; i++){
-			Fkap[i] = new double[2];
-			F_WCA[i]= new double[2];
-			F_noise[i] = new double[2];
+		F1_noise = new double*[N1];
+		for(int i=0; i<N1; i++){
+			F1kap[i] = new double[2];
+			F1_WCA[i]= new double[2];
+			F1_noise[i] = new double[2];
 		}//for i
-	}//if Fkap==NULL
+	}//if F1kap==NULL
 	
 	switch(startpos_methode){
 		case 1:

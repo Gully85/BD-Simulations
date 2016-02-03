@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fftw3.h>
 #include "signaturen.h"
+#include "dynamik_methoden.cpp"
 
 using std::cout; using std::endl;
 
@@ -13,11 +14,14 @@ extern const int N,densGrid_Zellen;
 extern const double L,densGrid_Breite;
 extern const double nachList_Breite;
 
+extern int** r1_git;
+extern double** r1_rel;
+
 //Beitrag eines Kolloids zur Dichte
 const double drho = 1.0/(densGrid_Breite*densGrid_Breite);
 
-// berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho, verwendet Index-Wrapping. Nearest Grid Point.
-void gridDensity_NGP(fftw_complex* rho, int** rr_git, double** rr_rel){
+// berechnet aus Teilchenpositionen (Gewichtung je Typ als Parameter) die Dichte auf Gitterpunkten. Schreibt in Rho, verwendet Index-Wrapping. Nearest Grid Point.
+void gridDensity_NGP(fftw_complex* rho, double gewicht1){ //TODO Signatur und Aufrufe
 
 	int i;
 	double x,y;
@@ -28,10 +32,10 @@ void gridDensity_NGP(fftw_complex* rho, int** rr_git, double** rr_rel){
 		for(l=0; l<densGrid_Zellen; l++)
 			rho[iw(k,l)][0] = 0.0;
 
-	//Schleife ueber Teilchen
-	for(i=0; i<N; i++){
+	//Schleife ueber Teilchen Typ 1
+	for(i=0; i<N1; i++){
 		//x-Richtung
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
 		// Gitterpunkt k ist bei x=(k+0.5)*breite
 		// die x, die am dichtesten bei k sind, gehen von k*breite bis (k+1)*breite
 		k = (int) (x/densGrid_Breite);
@@ -39,42 +43,49 @@ void gridDensity_NGP(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 
 		//y-Richtung
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 		// die y, die am dichtesten bei l liegen, gegen von l*breite bis (l+1)*breite
 		l = (int) (y/densGrid_Breite);
 
 		//kompletten Anteil auf rho[k][l] addieren
 		//rho[k][l] += 1.0;
-		rho[iw(k,l)][0] += drho;
+		rho[iw(k,l)][0] += drho*gewicht1;
 	}//for i
 
 }//void gridDens_NGP
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Nearest Grid Point.
-void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
+//void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
+void inv_gridDensity_NGP(){
+	
+	using namespace dynamik_methoden;
+// 	using dynamik_methoden::Fx; 
+// 	using dynamik_methoden::Fy;
+// 	using dynamik_methoden::F1kap;
+	
 	int i,k,l;
 	double x,y;
 
 /// setze Kraefte auf Null
-	for(i=0; i<N; i++){
-		Fkap[i][0] = 0.0;
-		Fkap[i][1] = 0.0;
+	for(i=0; i<N1; i++){
+		F1kap[i][0] = 0.0;
+		F1kap[i][1] = 0.0;
 	}//for i bis N
 
 /// Schleife ueber Teilchen
-	for(i=0; i<N; i++){
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+	for(i=0; i<N1; i++){
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
 		//dichtester Gitterpunkt
 		k = (int)(x/densGrid_Breite);
 
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 		//dichtester Gitterpunkt
 		l = (int)(y/densGrid_Breite);
 
 		//kompletter Anteil ist Fx[k] und Fy[l]
-		Fkap[i][0] = Fx[iw(k,l)][0];
-		Fkap[i][1] = Fy[iw(k,l)][0];
+		F1kap[i][0] = Fx[iw(k,l)][0];
+		F1kap[i][1] = Fy[iw(k,l)][0];
 
 	}//for i
 
@@ -84,7 +95,7 @@ void inv_gridDensity_NGP(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Cloud-In-Cell.
-void gridDensity_CIC(fftw_complex* rho, int** rr_git, double** rr_rel){
+void gridDensity_CIC(fftw_complex* rho, double gewicht1){
 
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -100,9 +111,9 @@ void gridDensity_CIC(fftw_complex* rho, int** rr_git, double** rr_rel){
 			rho[iw(k,l)][0] = 0.0;
 
 	//Schleife ueber Teilchen
-	for(i=0; i<N; i++){
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+	for(i=0; i<N1; i++){
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 
 		/// Indices der Zellen, die Anteile des Teilchens enthalten (koennen)
 		//x-Richtung
@@ -144,17 +155,17 @@ void gridDensity_CIC(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho;
-		rho[iw(kl,l )][0] += xlinks*yexakt  *drho;
-		rho[iw(kl,lr)][0] += xlinks*yrechts *drho;
+		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho*gewicht1;
+		rho[iw(kl,l )][0] += xlinks*yexakt  *drho*gewicht1;
+		rho[iw(kl,lr)][0] += xlinks*yrechts *drho*gewicht1;
 		
-		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho;
-		rho[iw(k ,l )][0] += xexakt*yexakt  *drho;
-		rho[iw(k ,lr)][0] += xexakt*yrechts *drho;
+		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho*gewicht1;
+		rho[iw(k ,l )][0] += xexakt*yexakt  *drho*gewicht1;
+		rho[iw(k ,lr)][0] += xexakt*yrechts *drho*gewicht1;
 
-		rho[iw(kr,ll)][0] += xrechts*ylinks *drho;
-		rho[iw(kr,l )][0] += xrechts*yexakt *drho;
-		rho[iw(kr,lr)][0] += xrechts*yrechts*drho;
+		rho[iw(kr,ll)][0] += xrechts*ylinks *drho*gewicht1;
+		rho[iw(kr,l )][0] += xrechts*yexakt *drho*gewicht1;
+		rho[iw(kr,lr)][0] += xrechts*yrechts*drho*gewicht1;
 
 
 		/* Test
@@ -169,8 +180,12 @@ void gridDensity_CIC(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Cloud In Cell.
-void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
+void inv_gridDensity_CIC(){
 
+	using namespace dynamik_methoden;
+// 	using dynamik_methoden::Fy;
+// 	using dynamik_methoden::F1kap;
+	
 	int i, k, l, kl, kr, ll, lr;
 	double x,y;
 
@@ -179,19 +194,19 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 	double tmp;
 
 	//alle Kraefte auf Null setzen
-	for(i=0; i<N; i++){
-		Fkap[i][0] = 0.0;
-		Fkap[i][1] = 0.0;
+	for(i=0; i<N1; i++){
+		F1kap[i][0] = 0.0;
+		F1kap[i][1] = 0.0;
 	}//for i bis N
 
 	//Schleife ueber Teilchen
-	for(i=0; i<N; i++){
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+	for(i=0; i<N1; i++){
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
 		k = (int)(x/densGrid_Breite);
 		kl = (k-1+densGrid_Zellen)%densGrid_Zellen;
 		kr = (k+1)%densGrid_Zellen;
 
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 		l = (int)(y/densGrid_Breite);
 		ll = (l-1+densGrid_Zellen)%densGrid_Zellen;
 		lr = (l+1)%densGrid_Zellen;
@@ -223,14 +238,14 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 		}//else, dh Teilchen in der oberen Haelfte der Zelle
 
 		//in xexakt,xlinks,xrechts,yexakt,ylinks,yrechts steckt alle benoetigte Information
-		Fkap[i][0] =  xlinks*(ylinks*Fx[iw(kl,ll)][0]  +  yexakt*Fx[iw(kl,l)][0]  +  yrechts*Fx[iw(kl,lr)][0]);
-		Fkap[i][1] =  xlinks*(ylinks*Fy[iw(kl,ll)][0]  +  yexakt*Fy[iw(kl,l)][0]  +  yrechts*Fy[iw(kl,lr)][0]);
+		F1kap[i][0] =  xlinks*(ylinks*Fx[iw(kl,ll)][0]  +  yexakt*Fx[iw(kl,l)][0]  +  yrechts*Fx[iw(kl,lr)][0]);
+		F1kap[i][1] =  xlinks*(ylinks*Fy[iw(kl,ll)][0]  +  yexakt*Fy[iw(kl,l)][0]  +  yrechts*Fy[iw(kl,lr)][0]);
 
-		Fkap[i][0] += xexakt*(ylinks*Fx[iw(k ,ll)][0]  +  yexakt*Fx[iw(k ,l)][0]  +  yrechts*Fx[iw(k ,lr)][0]);
-		Fkap[i][1] += xexakt*(ylinks*Fy[iw(k ,ll)][0]  +  yexakt*Fy[iw(k ,l)][0]  +  yrechts*Fy[iw(k ,lr)][0]);
+		F1kap[i][0] += xexakt*(ylinks*Fx[iw(k ,ll)][0]  +  yexakt*Fx[iw(k ,l)][0]  +  yrechts*Fx[iw(k ,lr)][0]);
+		F1kap[i][1] += xexakt*(ylinks*Fy[iw(k ,ll)][0]  +  yexakt*Fy[iw(k ,l)][0]  +  yrechts*Fy[iw(k ,lr)][0]);
 
-		Fkap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
-		Fkap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
+		F1kap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
+		F1kap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
 
 	}//for i
 
@@ -241,7 +256,7 @@ void inv_gridDensity_CIC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 
 
 // berechnet aus Teilchenpositionen die Dichte auf Gitterpunkten. Schreibt in Rho. Triangle-Shaped Cloud.
-void gridDensity_TSC(fftw_complex* rho, int** rr_git, double** rr_rel){
+void gridDensity_TSC(fftw_complex* rho, double gewicht1){
 	
 	int i, k, l; //i Teilchen, k und l Gitter
 	int kl, kr, ll, lr; //Indices der benachbarten Zellen (kl heisst "von k eins nach links"). Bedenke periodische Randbedingungen.
@@ -258,9 +273,9 @@ void gridDensity_TSC(fftw_complex* rho, int** rr_git, double** rr_rel){
 			rho[iw(k,l)][0] = 0.0;
 
 	//Schleife ueber Teilchen
-	for(i=0; i<N; i++){
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+	for(i=0; i<N1; i++){
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 
 		/// Indices der Zellen, die Anteile des Teilchens enthalten
 		//x-Richtung
@@ -297,17 +312,17 @@ void gridDensity_TSC(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 
 		/// nun sind alle Informationen beisammen. Erhoehe die entsprechenden neun Zellen von rho[][]
-		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho;
-		rho[iw(kl,l )][0] += xlinks*yexakt  *drho;
-		rho[iw(kl,lr)][0] += xlinks*yrechts *drho;
+		rho[iw(kl,ll)][0] += xlinks*ylinks  *drho*gewicht1;
+		rho[iw(kl,l )][0] += xlinks*yexakt  *drho*gewicht1;
+		rho[iw(kl,lr)][0] += xlinks*yrechts *drho*gewicht1;
 		
-		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho;
-		rho[iw(k ,l )][0] += xexakt*yexakt  *drho;
-		rho[iw(k ,lr)][0] += xexakt*yrechts *drho;
+		rho[iw(k ,ll)][0] += xexakt*ylinks  *drho*gewicht1;
+		rho[iw(k ,l )][0] += xexakt*yexakt  *drho*gewicht1;
+		rho[iw(k ,lr)][0] += xexakt*yrechts *drho*gewicht1;
 
-		rho[iw(kr,ll)][0] += xrechts*ylinks *drho;
-		rho[iw(kr,l )][0] += xrechts*yexakt *drho;
-		rho[iw(kr,lr)][0] += xrechts*yrechts*drho;
+		rho[iw(kr,ll)][0] += xrechts*ylinks *drho*gewicht1;
+		rho[iw(kr,l )][0] += xrechts*yexakt *drho*gewicht1;
+		rho[iw(kr,lr)][0] += xrechts*yrechts*drho*gewicht1;
 		/* Test
 			cout << "Teilchen "<<i<<" am Ort ("<<x<<","<<y<<"): x-Aufteilung ("<<xlinks<<" "<<xexakt<<" "<<xrechts<<"), y-Aufteilung ("<<ylinks<<" "<<yexakt<<" "<<yrechts<<")." << endl;
 			cout << "Beteiligte Zellen: k=("<<kl<<" "<<k<<" "<<kr<<"), l=("<<ll<<" "<<l<<" "<<lr<<")." << endl << endl;
@@ -319,7 +334,8 @@ void gridDensity_TSC(fftw_complex* rho, int** rr_git, double** rr_rel){
 
 
 // berechnet aus Teilchenpos und Kraeften an Gitterpunkten die Kraefte auf Teilchen. Schreibt in Fkap. Triangle Shaped Cloud.
-void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int** rr_git, double** rr_rel){
+void inv_gridDensity_TSC(){
+	using namespace dynamik_methoden;
 
 	int i, k, l, kl, kr, ll, lr;
 	double x,y;
@@ -329,19 +345,19 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 	double tmp,d;
 
 	//alle Kraefte auf Null setzen
-	for(i=0; i<N; i++){
-		Fkap[i][0] = 0.0;
-		Fkap[i][1] = 0.0;
+	for(i=0; i<N1; i++){
+		F1kap[i][0] = 0.0;
+		F1kap[i][1] = 0.0;
 	}//for i bis N
 
 	//Schleife ueber Teilchen
-	for(i=0; i<N; i++){
-		x = rr_git[i][0]*nachList_Breite + rr_rel[i][0];
+	for(i=0; i<N1; i++){
+		x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
 		k = (int)(x/densGrid_Breite);
 		kl = (k-1+densGrid_Zellen)%densGrid_Zellen;
 		kr = (k+1)%densGrid_Zellen;
 
-		y = rr_git[i][1]*nachList_Breite + rr_rel[i][1];
+		y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
 		l = (int)(y/densGrid_Breite);
 		ll = (l-1+densGrid_Zellen)%densGrid_Zellen;
 		lr = (l+1)%densGrid_Zellen;
@@ -369,14 +385,14 @@ void inv_gridDensity_TSC(double** Fkap, fftw_complex* Fx, fftw_complex* Fy, int*
 
 		
 		//in xexakt,xlinks,xrechts,yexakt,ylinks,yrechts steckt alle benoetigte Information
-		Fkap[i][0] =  xlinks*(ylinks*Fx[iw(kl,ll)][0]  +  yexakt*Fx[iw(kl,l)][0]  +  yrechts*Fx[iw(kl,lr)][0]);
-		Fkap[i][1] =  xlinks*(ylinks*Fy[iw(kl,ll)][0]  +  yexakt*Fy[iw(kl,l)][0]  +  yrechts*Fy[iw(kl,lr)][0]);
+		F1kap[i][0] =  xlinks*(ylinks*Fx[iw(kl,ll)][0]  +  yexakt*Fx[iw(kl,l)][0]  +  yrechts*Fx[iw(kl,lr)][0]);
+		F1kap[i][1] =  xlinks*(ylinks*Fy[iw(kl,ll)][0]  +  yexakt*Fy[iw(kl,l)][0]  +  yrechts*Fy[iw(kl,lr)][0]);
 
-		Fkap[i][0] += xexakt*(ylinks*Fx[iw(k ,ll)][0]  +  yexakt*Fx[iw(k ,l)][0]  +  yrechts*Fx[iw(k ,lr)][0]);
-		Fkap[i][1] += xexakt*(ylinks*Fy[iw(k ,ll)][0]  +  yexakt*Fy[iw(k ,l)][0]  +  yrechts*Fy[iw(k ,lr)][0]);
+		F1kap[i][0] += xexakt*(ylinks*Fx[iw(k ,ll)][0]  +  yexakt*Fx[iw(k ,l)][0]  +  yrechts*Fx[iw(k ,lr)][0]);
+		F1kap[i][1] += xexakt*(ylinks*Fy[iw(k ,ll)][0]  +  yexakt*Fy[iw(k ,l)][0]  +  yrechts*Fy[iw(k ,lr)][0]);
 
-		Fkap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
-		Fkap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
+		F1kap[i][0] +=xrechts*(ylinks*Fx[iw(kr,ll)][0]  +  yexakt*Fx[iw(kr,l)][0]  +  yrechts*Fx[iw(kr,lr)][0]);
+		F1kap[i][1] +=xrechts*(ylinks*Fy[iw(kr,ll)][0]  +  yexakt*Fy[iw(kr,l)][0]  +  yrechts*Fy[iw(kr,lr)][0]);
 
 	}//for i
 
