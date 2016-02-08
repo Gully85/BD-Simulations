@@ -12,6 +12,7 @@ using std::string;
 
 // Teilchenzahl
 const int N1 = 1804; 
+const int N2 = 0;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 400.0; //
@@ -38,6 +39,27 @@ const double dt_max = 0.05;
 
 //maximale Reisedistanz in einem Zeitschritt
 const double max_reisedistanz = 0.1;
+
+//Verhältnis der Radien Typ1 und Typ2. Sigma11/Sigma22
+const double sigma11_22 = 1.25;
+
+//Verhältnis der Radien Sigma11/Sigma12. additive Mischung
+const double sigma11_12 = 0.5*(1.0 + sigma11_22);
+
+// Verhältnis der Mobilitäten Gamma2/Gamma1. Falls Reibung ~ Radius ist, ist Mobilität ~ 1/Radius
+const double Gamma2_1 = sigma11_22;
+
+// Verhältnis der Potentialstärken eps22/eps11
+const double eps22_11 = 1.0;
+
+//analog eps12/eps11
+const double eps12_11 = 1.0;
+
+
+//Verhältnis der Kräfte im Referenzzustand
+const double f2_f1 = 1.0/sigma11_22; //gleiche Dichten und Oberflächen
+
+
 
 
 
@@ -74,10 +96,11 @@ const string pos_output_dateiname="pos.txt";
 
 
 // Welche Observablen sollen aufgenommen werden?
-const bool auswerten_korrfunk11 = true;
-const bool auswerten_rho1vonk= true;
-const bool auswerten_rho1viaFFTW = true;
-const bool auswerten_rho1FT_normjerun=true; //nur falls auswerten_rhoviaFFTW gesetzt ist.
+const bool auswerten_korrfunk = true;
+const bool auswerten_korrfunk_mixed = true;
+const bool auswerten_rhovonk= true; //via Gitter im k-Raum
+const bool auswerten_rhoviaFFTW = true;
+const bool auswerten_rhoFT_normjerun=true; //nur falls auswerten_rhoviaFFTW gesetzt ist.
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

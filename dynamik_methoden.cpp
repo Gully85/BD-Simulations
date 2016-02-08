@@ -13,15 +13,21 @@
 #include <iostream>
 #include <vector>
 
-using std::cout; using std::endl;
+using std::cout; using std::endl; using std::flush;
 using std::vector;
 
 
 extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
 extern const int densGrid_Zellen, densGrid_Schema;
-extern const int N1;
+extern const int N1, N2;
 extern int** r1_git;
 extern double** r1_rel;
+extern int** r2_git;
+extern double** r2_rel;
+
+extern const double sigma11_22, sigma11_12, Gamma2_1, eps22_11, eps12_11;
+
+extern const double f2_f1;
 
 extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
 
@@ -39,10 +45,14 @@ fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und
 fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
 vector<int>** erwNachbarn1 = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
+vector<int>** erwNachbarn2 = NULL; //hier stehen die Indices der Typ2-Teilchen drin
 
 double** F1kap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2kap = NULL;
 double** F1_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2_WCA = NULL;
 double** F1_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2_noise = NULL;
 
 const int Z = densGrid_Zellen;
 
@@ -51,7 +61,7 @@ fftw_plan backx_plan=NULL;
 fftw_plan backy_plan=NULL;
 }//namespace dynMeth
 
-
+//TODO: Das Aktualisieren der Nachbarlisten auslagern!
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
 double zeitschritt(double tmax){ 
 	
@@ -60,12 +70,14 @@ double zeitschritt(double tmax){
 	double deltat=tmax; //tatsaechliche Dauer. Koennte kleiner werden als tmax
 	
 	if(tmax <= 0.0){
-		cout << "Fehler: Negative Zeitschrittweite " << tmax << " gefordert, breche ab!" << endl;
+		cout << "Fehler: Negative Zeitschrittweite " << tmax << " gefordert, breche ab!" << endl << flush;
 		return 1.0e10;
 	}//if tmax negativ, alles abbrechen
 	
 	//Berechne alle benoetigten Kraefte
-	berechne_WCAkraefte(); //schreibt in F_WCA
+	berechne_WCA11(); //schreibt in F1_WCA
+	berechne_WCA22();
+	addiere_WCA12();
 	berechne_kapkraefte();
 	berechne_zufallskraefte(N1, F1_noise);
 	
@@ -161,19 +173,22 @@ void WCA_init(){
 	//reserviere Speicher
 	if(erwNachbarn1 == NULL){
 		erwNachbarn1 = new vector<int>*[nachList_Zellen];
+		erwNachbarn2 = new vector<int>*[nachList_Zellen];
 		for(int i=0; i<nachList_Zellen; i++){
 			erwNachbarn1[i] = new vector<int>[nachList_Zellen];
+			erwNachbarn2[i] = new vector<int>[nachList_Zellen];
 		}//for i
 	}//if erwNachbarn==NULL
 	else
 		for(int i=0; i<nachList_Zellen; i++)
 		for(int j=0; j<nachList_Zellen; j++){
 			erwNachbarn1[i][j].clear();
+			erwNachbarn2[i][j].clear();
 		}//for i,j
 	int* x = new int[3]; //links davon, exakt, rechts davon
 	int* y = new int[3];
 
-	//trage jedes Teilchen in seine Zelle, und die 8 Nachbarzellen ein
+	//trage jedes Typ1-Teilchen in seine Zelle, und die 8 Nachbarzellen ein
 	for(int teilchen=0; teilchen<N1; teilchen++){
 		int k = r1_git[teilchen][0];
 		int l = r1_git[teilchen][1];
@@ -192,6 +207,27 @@ void WCA_init(){
 		    erwNachbarn1[x[i]][y[j]].push_back(teilchen);
 		
 	}//for teilchen
+	
+	//trage jedes Typ2-Teilchen in seine Zelle und Nachbarzellen ein
+	for(int teilchen=0; teilchen<N2; teilchen++){
+		int k = r2_git[teilchen][0];
+		int l = r2_git[teilchen][1];
+		
+		//ermittle beteiligte Zellen
+		x[0] = (k-1+nachList_Zellen)%nachList_Zellen;
+		x[1] = k;
+		x[2] = (k+1)%nachList_Zellen;
+		y[0] = (l-1+nachList_Zellen)%nachList_Zellen;
+		y[1] = l;
+		y[2] = (l+1)%nachList_Zellen;
+		
+		//fuege Teilchen diesen Zellen hinzu
+		for(int i=0;i<3;i++)
+		  for(int j=0;j<3;j++)
+		    erwNachbarn2[x[i]][y[j]].push_back(teilchen);
+
+	}//for teilchen
+	
 
 } //void WCA_init
 
@@ -253,7 +289,7 @@ void kapkraefte_init(){
 
 
 // berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]. TODO Signatur und Aufrufe korrigieren!
-void berechne_WCAkraefte(){
+void berechne_WCA11(){
 	using namespace dynamik_methoden;
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
@@ -323,11 +359,153 @@ void berechne_WCAkraefte(){
 			
 		}//for j
 	}//for i
-}//void berechne_WCAkraefte
+}//void berechne_WCA11
+
+//TODO
+void berechne_WCA22(){
+	
+	using namespace dynamik_methoden;
+	int i; //Teilchen
+	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
+	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
+
+	if(F2_WCA == NULL){
+		cout << "Fehler: WCA-Kraefteberechnung aufgerufen, aber nicht initialisiert!" << endl;
+		return;
+	}//if nicht initialisiert
+
+	//setze F_WCA auf Null
+	for(i=0; i<N2; i++){
+		F2_WCA[i][0]=0.0;
+		F2_WCA[i][1]=0.0;
+	}//for
+	
+	//Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
+	for(i=0; i<N2; i++){
+		int ic = r2_git[i][0];
+		int jc = r2_git[i][1];
+		
+		for(j = erwNachbarn2[ic][jc].begin(); j!=erwNachbarn2[ic][jc].end(); j++){
+			if(i == *j) continue; //ueberspringe WW mit sich selbst
+			
+			//Abstand berechnen, mit periodischen Randbedingungen
+			a2 = abstand2_22(i, *j);
+			
+			//falls zu weit entfernt, WW ueberspringen
+			if(a2 > zweihoch1_6*zweihoch1_6 * sigma11_22*sigma11_22) continue;
+			
+			//Absolutkoordinaten
+			double x1 = r2_git[ i][0]*nachList_Breite + r2_rel[ i][0];
+			double y1 = r2_git[ i][1]*nachList_Breite + r2_rel[ i][1];
+			double x2 = r2_git[*j][0]*nachList_Breite + r2_rel[*j][0];
+			double y2 = r2_git[*j][1]*nachList_Breite + r2_rel[*j][1];
+			
+			double dx = x1-x2;
+			double dy = y1-y2;
+			
+			//periodische Randbedingungen. Falls dx^2 + dy^2 == a2 ist, ist dies nicht noetig.
+			if(dx*dx + dy*dy > a2){
+				//x-Richtung nahe am Rand?
+				if((dx-L)*(dx-L) < dx*dx)
+					x2 += L;
+				else if((dx+L)*(dx+L) < dx*dx)
+					x2 -= L;
+				dx = x1-x2;
+				
+				//y-Richtung nahe am Rand?
+				if((dy-L)*(dy-L) < dy*dy)
+					y2 += L;
+				else if((dy+L)*(dy+L) < dy*dy)
+					y2 -= L;
+				dy = y1-y2;
+				
+			}//if periodische Randbedingungen
+			
+			a2 *= sigma11_22*sigma11_22;
+			dx *= sigma11_22;
+			dy *= sigma11_22;
+			
+			
+			// a^(-8) und a^(-14)
+			double a_8 = 1.0/(a2*a2*a2*a2);
+			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+			
+			//addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
+			F2_WCA[i][0] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dx;
+			F2_WCA[i][1] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dy;
+			
+		}//for j
+	}//for i
+	
+}//void berechne_WCA22
+
+//TODO
+void addiere_WCA12(){
+	using namespace dynamik_methoden;
+	
+	int i,j2; // i läuft über Typ 1, j läuft über Typ 2
+	vector<int>::iterator j; //läuft über die Typ2-Nachbarliste
+	double a2; //abstandsquadrat
+	int ic, jc; //Indices der Zelle, wo das Typ1-Teilchen drin ist
+	
+	for(i=0; i<N1; i++){
+		ic = r1_git[i][0];
+		jc = r1_git[i][1];
+		
+		for(j=erwNachbarn2[ic][jc].begin(); j!=erwNachbarn2[ic][jc].end(); j++){
+			j2 = *j;
+			a2 = abstand2_12(i,j2);
+			
+			//Falls Abstand zu groß, überspringen
+			if(a2 > zweihoch1_6*zweihoch1_6 * sigma11_12*sigma11_12) continue;
+			
+			//Absolutkoordinaten
+			double x1 = r1_git[i ][0]*nachList_Breite + r1_rel[i ][0];
+			double y1 = r1_git[i ][1]*nachList_Breite + r1_rel[i ][1];
+			double x2 = r2_git[j2][0]*nachList_Breite + r2_rel[j2][0];
+			double y2 = r2_git[j2][1]*nachList_Breite + r2_rel[j2][1];
+			
+			double dx = x1-x2;
+			double dy = y1-y2;
+			
+			//Periodische Randbedingungen: Falls nahe am Rand, x2 y2 verschieben
+			if(dx*dx+dy*dy > a2){
+				//x-Richtung nahe am Rand?
+				//dx = x1 - x2. dx-L ist also x1-(x2+L), und wenn dx-L kürzer ist als dx, setze x2 auf x2+L.
+				if((dx-L)*(dx-L) < dx*dx)
+					x2 += L;
+				else if((dx+L)*(dx+L) < dx*dx)
+					x2 -= L;
+				
+				//y-Richtung nahe am Rand?
+				if((dy-L)*(dy-L) < dy*dy)
+					y2 += L;
+				else if((dy+L)*(dy+L) < dy*dy)
+					y2 -= L;
+				
+			}//if nahe am Rand
+			
+			//skalieren mit sigma11_12
+			a2 *= sigma11_12*sigma11_12;
+			dx *= sigma11_12;
+			dy *= sigma11_12;
+			
+			// a hoch -8 und hoch -14
+			double a_8 = 1.0/(a2*a2*a2*a2);
+			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+			
+			//TODO skalieren
+			F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
+			F1_WCA[i ][1] += 4.0*6.0*(2*a_14-a_8)*dy;
+			F2_WCA[j2][0] -= 4.0*6.0*(2*a_14-a_8)*dx;
+			F2_WCA[j2][1] -= 4.0*6.0*(2*a_14-a_8)*dy;
+		}//for j durch die Nachbarliste
+	}//for i, Typ 1
+	
+}//void addiere_WCA12
 
 
-
-//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. TODO Übergabe oder global? TODO Signatur und Aufrufe korrigieren!
+//berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. 
 void berechne_kapkraefte(){
 	
 	using namespace dynamik_methoden;
@@ -336,9 +514,9 @@ void berechne_kapkraefte(){
 
 /// Density-Gridding: Schreibe Dichte in rhox[][0]
 	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, 1.0); break; //TODO gridDensity auf global umstellen, namespace nutzen
-		case 1: gridDensity_CIC(rhox, 1.0); break;
-		case 2: gridDensity_TSC(rhox, 1.0); break;
+		case 0: gridDensity_NGP(rhox, 1.0, f2_f1); break; //TODO gridDensity auf global umstellen, namespace nutzen
+		case 1: gridDensity_CIC(rhox, 1.0, f2_f1); break;
+		case 2: gridDensity_TSC(rhox, 1.0, f2_f1); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
@@ -364,7 +542,7 @@ void berechne_kapkraefte(){
 
 /// inverse Density-Gridding: Schreibe Kraefte in Fkap
 	switch(densGrid_Schema){
-		case 0: inv_gridDensity_NGP(); break; //TODO inv_gridDensity auf global umstellen, namespace nutzen
+		case 0: inv_gridDensity_NGP(); break; 
 		case 1: inv_gridDensity_CIC(); break;
 		case 2: inv_gridDensity_TSC(); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
@@ -405,23 +583,37 @@ void main_init(){
 		r1_git = new int*[N1];
 		// dasgleiche, Vektor innerhalb der Zelle
 		r1_rel = new double*[N1];
+		r2_git = new int*[N2];
+		r2_rel = new double*[N2];
 		for(int i=0; i<N1; i++){
 			r1_git[i] = new int[2];
 			r1_rel[i] = new double[2];
+		}//for i
+		for(int i=0; i<N2; i++){
+			r2_git[i] = new int[2];
+			r2_rel[i] = new double[2];
 		}//for i
 	}//if r_git == NULL
 	
 	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
 	if(F1kap == NULL){
 		F1kap = new double*[N1];
+		F2kap = new double*[N2];
 		//WCA-Kraefte, gleiche Indices
-		F1_WCA= new double*[N1];
+		F1_WCA = new double*[N1];
+		F2_WCA = new double*[N2];
 		//Zufallskraefte, gleiche Indices
 		F1_noise = new double*[N1];
+		F2_noise = new double*[N2];
 		for(int i=0; i<N1; i++){
 			F1kap[i] = new double[2];
 			F1_WCA[i]= new double[2];
 			F1_noise[i] = new double[2];
+		}//for i
+		for(int i=0; i<N2; i++){
+			F2kap[i] = new double[2];
+			F2_WCA[i]= new double[2];
+			F2_noise[i] = new double[2];
 		}//for i
 	}//if F1kap==NULL
 	

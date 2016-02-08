@@ -35,9 +35,11 @@ extern const double obs_dt;
 
 extern const int runs;
 
-extern const bool auswerten_korrfunk1;
-extern const bool auswerten_rho1vonk;
-extern const bool auswerten_rho1viaFFTW;
+extern const bool auswerten_korrfunk;
+extern const bool auswerten_korrfunk_mixed;
+extern const bool auswerten_rhovonk;
+extern const bool auswerten_rhoviaFFTW;
+extern const bool auswerten_rhoFT_normjerun;
 
 /// Globale Felder. Mit Null initialisiert.
 
@@ -68,9 +70,11 @@ for(int run=0; run<runs; run++){
 	cout << "run nr " << run << endl;
 	
 	cout << "record obs-Punkt 1 von " << obs_anzahl << endl;
-	if (auswerten_korrfunk11) record_korrelationsfunktion11(run, 0);
-	if (auswerten_rho1vonk) record_ftrho1_unkorrigiert(run, 0);
-	if (auswerten_rho1viaFFTW) record_rho1FFTW(run, 0);
+	if (auswerten_korrfunk) record_korrelationsfunktion11(run, 0);
+	if (auswerten_korrfunk) record_korrelationsfunktion22(run, 0);
+	if (auswerten_korrfunk_mixed) record_korrelationsfunktion12(run,0);
+	if (auswerten_rhovonk) record_ftrho_unkorrigiert(run, 0);
+	if (auswerten_rhoviaFFTW) record_rhoFFTW(run, 0);
 	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
 		double t=0.0;
@@ -87,18 +91,22 @@ for(int run=0; run<runs; run++){
 		cout << "record obs-Punkt " << obs_nr+1 << " von " << obs_anzahl << endl;
 		cout << "Zeitschritte im run: " << schritte_im_run << ", das sind " << schritte_seit_stop << " seit dem letzten Stop." << endl;
 		
-		if(auswerten_korrfunk11) record_korrelationsfunktion11(run, obs_nr);
-		if(auswerten_rho1vonk) record_ftrho1_unkorrigiert(run, obs_nr);
-		if(auswerten_rho1viaFFTW) record_rho1FFTW(run, obs_nr);
+		if(auswerten_korrfunk) record_korrelationsfunktion11(run, obs_nr);
+		if(auswerten_korrfunk) record_korrelationsfunktion22(run, obs_nr);
+		if(auswerten_korrfunk_mixed) record_korrelationsfunktion12(run, obs_nr);
+		if(auswerten_rhovonk) record_ftrho_unkorrigiert(run, obs_nr);
+		if(auswerten_rhoviaFFTW) record_rhoFFTW(run, obs_nr);
 	}//for obs_nr
 
 }//for run
 
 
 //Statistik, und Ergebnis in Datei schreiben
-if(auswerten_korrfunk11) auswerten_korrelationsfunktion11();
-if(auswerten_rho1vonk) auswerten_ftrho1();
-if(auswerten_rho1viaFFTW) auswerten_rho1FFTW();
+if(auswerten_korrfunk) auswerten_korrelationsfunktion();
+if(auswerten_korrfunk_mixed) auswerten_korrelationsfunktion_mixed(); //HIER WEITER! 
+if(auswerten_rhovonk) auswerten_ftrho();
+if(auswerten_rhoviaFFTW) auswerten_rhoFFTW();
+if(auswerten_rhoFT_normjerun) auswerten_rhoFFTW_normjerun();
 
 pos_schreiben(); //schreibe Positionen am Ende des letzten Runs in Datei pos.txt
 // */
@@ -172,3 +180,49 @@ double abstand2_11(int i, int j){
 	
 	return dx2 + dy2;
 }//double abstand2
+
+//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 2). Berücksichtigt periodische Randbedingungen.
+double abstand2_12(int i, int j){
+	//Absolutpositionen
+	double xi_abs = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+	double xj_abs = r2_git[j][0]*nachList_Breite + r2_rel[j][0];
+	double yi_abs = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
+	double yj_abs = r2_git[j][1]*nachList_Breite + r2_rel[j][1];
+	
+	// dx^2, durch die periodischen Randbed gibt es drei Moeglichkeiten
+	double tmp1 = xi_abs - xj_abs;
+	double tmp2 = xi_abs - xj_abs + L;
+	double tmp3 = xi_abs - xj_abs - L;
+	double dx2 = min(tmp1*tmp1, min(tmp2*tmp2, tmp3*tmp3));
+	
+	// das gleiche fuer dy^2
+	tmp1 = yi_abs - yj_abs;
+	tmp2 = yi_abs - yj_abs + L;
+	tmp3 = yi_abs - yj_abs - L;
+	double dy2 = min(tmp1*tmp1, min(tmp2*tmp2, tmp3*tmp3));
+	
+	return dx2 + dy2;
+}//double abstand2_12
+
+double abstand2_22(int i, int j){
+	//Absolutpositionen
+	double xi_abs = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
+	double xj_abs = r2_git[j][0]*nachList_Breite + r2_rel[j][0];
+	double yi_abs = r2_git[i][1]*nachList_Breite + r2_rel[i][1];
+	double yj_abs = r2_git[j][1]*nachList_Breite + r2_rel[j][1];
+	
+	// dx^2, durch die periodischen Randbed gibt es drei Moeglichkeiten
+	double tmp1 = xi_abs - xj_abs;
+	double tmp2 = xi_abs - xj_abs + L;
+	double tmp3 = xi_abs - xj_abs - L;
+	double dx2 = min(tmp1*tmp1, min(tmp2*tmp2, tmp3*tmp3));
+	
+	// das gleiche fuer dy^2
+	tmp1 = yi_abs - yj_abs;
+	tmp2 = yi_abs - yj_abs + L;
+	tmp3 = yi_abs - yj_abs - L;
+	double dy2 = min(tmp1*tmp1, min(tmp2*tmp2, tmp3*tmp3));
+	
+	return dx2 + dy2;
+	
+}//double abstand2_22

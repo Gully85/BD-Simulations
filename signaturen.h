@@ -14,9 +14,9 @@ int iw(int i, int j);
 // diese drei Funktionen fuehren density-Gridding durch, dh berechnen aus N Teilchenpositionen im Feld r[][] eine Dichteverteilung rhox[][].
 // (der zweite Index ist Imaginaerteil, alle Eintraege stehen in rhox[.][0], alle rhox[.][1] werden nicht veraendert.)
 // es wird Index-Wrapping mit int iw(int, int) verwendet. Alle drei schreiben in rhox.
-void gridDensity_NGP(fftw_complex* rhox, double gewicht1); //Nearest Grid Point
-void gridDensity_CIC(fftw_complex* rhox, double gewicht1); //Cloud In Cell
-void gridDensity_TSC(fftw_complex* rhox, double gewicht1); //Triangle-Shaped Cloud
+void gridDensity_NGP(fftw_complex* rhox, double gewicht1, double gewicht2); //Nearest Grid Point
+void gridDensity_CIC(fftw_complex* rhox, double gewicht1, double gewicht2); //Cloud In Cell
+void gridDensity_TSC(fftw_complex* rhox, double gewicht1, double gewicht2); //Triangle-Shaped Cloud
 
 
 // diese drei Funktionen fuehren inverses density-Gridding durch, dh berechnen aus N Teilchenpositionen und den Kraeften an Gitterpunkten die Kraefte auf Teilchen.
@@ -45,7 +45,9 @@ void pos_schreiben();
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(); 
 // berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]
-void berechne_WCAkraefte(); 
+void berechne_WCA11(); 
+void berechne_WCA22();
+void addiere_WCA12();
 // initialisiert Felder fuer Kapillarkraefte, plant Fouriertrafo
 void kapkraefte_init();
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap
@@ -67,17 +69,17 @@ void init_ftrho();
 //reserviere Speicher und plane FFTs für rho(k) via FFTW. Variable vector<double>rhoFFTW[run][t][k/dq].
 void init_rhoFFTW(); 
 //schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
-void record_ftrho1_unkorrigiert(int ar, int t);
+void record_ftrho_unkorrigiert(int ar, int t);
 //berechnet aktuelles rho(k) via FFTW, schreibt es in rhoFFTW[ar][t][.]
-void record_rho1FFTW(int run, int t);
+void record_rhoFFTW(int run, int t);
 //dividiert Korrekturen aus ftrho raus
-void korrigiere_ftrho1();
+void korrigiere_ftrho();
 //ruft korrigiere() und statistik() auf und schreibt Ergebnisse in Datei. 
-void auswerten_ftrho1();
+void auswerten_ftrho();
 //berechnet Mittelwerte und Fehler von rhoFFT, schreibt in Datei rhoFFT.txt
-void auswerten_rho1FFTW();
+void auswerten_rhoFFTW();
 //berechnet eine Variante von rhoFFT, bei der zuerst jeder Run mit seinem Startwert normiert wird und dann erst über Runs gemittelt. Schreibt in rhoFFTW_re und _im
-void auswerten_rho1FFTW_normjerun();
+void auswerten_rhoFFTW_normjerun();
 
 
 //suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück
@@ -85,11 +87,16 @@ int suche(int a, vector<int> v);
 
 
 //Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
-void record_korrelationsfunktion(int ar, int t);
-void auswerten_korrelationsfunktion();//ruft statistik auf und schreibt Ergebnisse in Datei
+void record_korrelationsfunktion11(int ar, int t);
+void record_korrelationsfunktion12(int ar, int t);
+void record_korrelationsfunktion22(int ar, int t);
+void auswerten_korrelationsfunktion();//ruft statistik auf und schreibt Ergebnisse in Datei. Es wird g11 und g22 ausgewertet.
+void auswerten_korrelationsfunktion_mixed(); //das gleiche für g12
 void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<double>*& varianzen, int anzahl);
 
 
 
 //berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.
 double abstand2_11(int i, int j);
+double abstand2_12(int i, int j); // i ist Typ1, j ist Typ2
+double abstand2_22(int i, int j);
