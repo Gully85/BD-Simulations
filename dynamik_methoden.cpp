@@ -80,6 +80,7 @@ double zeitschritt(double tmax){
 	addiere_WCA12();
 	berechne_kapkraefte();
 	berechne_zufallskraefte(N1, F1_noise);
+	berechne_zufallskraefte(N2, F2_noise);
 	
 	/* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
 	for(int teilchen=0; teilchen<N; teilchen++){
@@ -92,7 +93,7 @@ double zeitschritt(double tmax){
 	
 // 	cout << endl << "Zeitschritt: " << deltat << endl;
 	
-	//alle Teilchen bewegen
+	//alle Teilchen Typ 1 bewegen
 	for(int teilchen=0; teilchen<N1; teilchen++){
 		double dx = deltat * (F1_WCA[teilchen][0] + F1kap[teilchen][0]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][0];
 		double dy = deltat * (F1_WCA[teilchen][1] + F1kap[teilchen][1]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][1];
@@ -104,8 +105,29 @@ double zeitschritt(double tmax){
 		r1_rel[teilchen][0] += dx;
 		r1_rel[teilchen][1] += dy;
 		
+	}//for teilchen bis N1
+	
+	//Typ 2 bewegen
+	for(int teilchen=0; teilchen<N2; teilchen++){
+		double dx = deltat * (F2_WCA[teilchen][0] + F2kap[teilchen][0]) + sqrt(2.0*T*deltat)*F2_noise[teilchen][0];
+		double dy = deltat * (F2_WCA[teilchen][1] + F2kap[teilchen][1]) + sqrt(2.0*T*deltat)*F2_noise[teilchen][1];
 		
-		//ueber Zellgrenze bewegt?
+		r2_rel[teilchen][0] += dx;
+		r2_rel[teilchen][1] += dy;
+	}//for teilchen bis N2
+	
+	//erwListen aktualisieren: Falls ein Teilchen seine Zelle verlassen hat (dh r_rel<0 oder r_rel>nachList_Breite), streichen/hinzufügen
+	refresh_erwNachbar();
+	
+	return deltat;
+}//double zeitschritt
+
+
+//erneuere erwNachbarlisten. Beim Aufruf sind r_rel<0 oder r_rel>nachList_Breite zulässig, wird behoben
+void refresh_erwNachbar(){
+	using namespace dynamik_methoden;
+	//Typ 1 über Zellgrenze bewegt?
+	for(int teilchen=0; teilchen<N1; teilchen++){
 		if(r1_rel[teilchen][0] < 0.0 || r1_rel[teilchen][0] > nachList_Breite
 		|| r1_rel[teilchen][1] < 0.0 || r1_rel[teilchen][1] > nachList_Breite){
 			//Indices der alten Zelle
@@ -154,12 +176,64 @@ double zeitschritt(double tmax){
 				erwNachbarn1[x[i]][y[j]].push_back(teilchen);
 			
 			
+		}//if Typ1 aus Zelle bewegt
+	}//for teilchen bis N1
+	
+	
+	//Typ 2 über Zellgrenze bewegt?
+	for(int teilchen=0; teilchen<N2; teilchen++){
+		if(r2_rel[teilchen][0] < 0.0 || r2_rel[teilchen][0] > nachList_Breite
+		|| r2_rel[teilchen][1] < 0.0 || r2_rel[teilchen][1] > nachList_Breite){
+			//Indices der alten Zelle
+			int ic = r2_git[teilchen][0];
+			int jc = r2_git[teilchen][1];
+			
+			//Zellen, in denen das Teilchen bisher eingetragen war
+			int x[3]; int y[3];
+			x[0] = (ic-1 + nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1 + nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			//aus allen entfernen
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwListe_rem(erwNachbarn2[x[i]][y[j]], teilchen);
+			
+			//Indices der neuen Zelle. Koennen noch negative oder zu grosse Werte haben. floor() rundet auch negative Zahlen korrekt ab.
+			ic = (int) floor((r2_git[teilchen][0]*nachList_Breite + r2_rel[teilchen][0])/nachList_Breite);
+			jc = (int) floor((r2_git[teilchen][1]*nachList_Breite + r2_rel[teilchen][1])/nachList_Breite);
+			
+			// korrigiere negative bzw zu grosse Zellindices, durch period. Randbed.
+			ic = (ic+nachList_Zellen)%nachList_Zellen;
+			jc = (jc+nachList_Zellen)%nachList_Zellen;
+			
+			//trage neue Position in Gitter- und Relativvektor ein
+			r2_rel[teilchen][0] = fmod(r2_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r2_rel[teilchen][1] = fmod(r2_rel[teilchen][1] + nachList_Breite, nachList_Breite);
+			r2_git[teilchen][0] = ic;
+			r2_git[teilchen][1] = jc;
+			
+			//fuege Teilchen den neuen Nachbarlisten hinzu
+			//Zellen, in die das Teilchen eingetragen werden soll. ic,jc sind schon aktuell
+			x[0] = (ic-1+nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1+nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwNachbarn2[x[i]][y[j]].push_back(teilchen);
+			
+			
 		}//if aus Zelle bewegt
-		
-	}//for i
-	return deltat;
-}//double zeitschritt
-
+	}//for teilchen bis N2
+	
+}//void refresh_erwNachbar
 
 
 
@@ -288,7 +362,7 @@ void kapkraefte_init(){
 }//void kapkraefte_init
 
 
-// berechnet WCA-Kraefte. Schreibt sie in F_WCA[][2]. TODO Signatur und Aufrufe korrigieren!
+// berechnet WCA-Kraefte. Schreibt sie in F1_WCA[N1][2]
 void berechne_WCA11(){
 	using namespace dynamik_methoden;
 	int i; //Teilchen
@@ -361,7 +435,7 @@ void berechne_WCA11(){
 	}//for i
 }//void berechne_WCA11
 
-//TODO
+//berechne WCA-Kräfte aus 22-Wechselwirkung, schreibe sie in F2_WCA[N2][2]
 void berechne_WCA22(){
 	
 	using namespace dynamik_methoden;
@@ -392,7 +466,7 @@ void berechne_WCA22(){
 			a2 = abstand2_22(i, *j);
 			
 			//falls zu weit entfernt, WW ueberspringen
-			if(a2 > zweihoch1_6*zweihoch1_6 * sigma11_22*sigma11_22) continue;
+			if(a2 * sigma11_22*sigma11_22 > zweihoch1_6*zweihoch1_6 ) continue;
 			
 			//Absolutkoordinaten
 			double x1 = r2_git[ i][0]*nachList_Breite + r2_rel[ i][0];
@@ -439,7 +513,7 @@ void berechne_WCA22(){
 	
 }//void berechne_WCA22
 
-//TODO
+//berechne WCA-Kräfte aus 12-Wechselwirkung, addiere sie in F1_WCA[N1][2] und F2_WCA[N2][2] 
 void addiere_WCA12(){
 	using namespace dynamik_methoden;
 	
@@ -457,7 +531,7 @@ void addiere_WCA12(){
 			a2 = abstand2_12(i,j2);
 			
 			//Falls Abstand zu groß, überspringen
-			if(a2 > zweihoch1_6*zweihoch1_6 * sigma11_12*sigma11_12) continue;
+			if(a2 * sigma11_12*sigma11_12> zweihoch1_6*zweihoch1_6) continue;
 			
 			//Absolutkoordinaten
 			double x1 = r1_git[i ][0]*nachList_Breite + r1_rel[i ][0];
@@ -494,11 +568,11 @@ void addiere_WCA12(){
 			double a_8 = 1.0/(a2*a2*a2*a2);
 			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
 			
-			//TODO skalieren
+			
 			F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
-			F1_WCA[i ][1] += 4.0*6.0*(2*a_14-a_8)*dy;
-			F2_WCA[j2][0] -= 4.0*6.0*(2*a_14-a_8)*dx;
-			F2_WCA[j2][1] -= 4.0*6.0*(2*a_14-a_8)*dy;
+			F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+			F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
+			F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
 		}//for j durch die Nachbarliste
 	}//for i, Typ 1
 	

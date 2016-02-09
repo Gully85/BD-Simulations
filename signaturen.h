@@ -58,7 +58,12 @@ void berechne_zufallskraefte(int anzahl, double** dn);
 double zeitschritt(double dt = dt_max);
 //bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
 double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int N); 
-void erwListe_rem(vector<int>& liste, int i); //streiche Eintrag aus erwListe
+
+//erneuere erwNachbarlisten. Beim Aufruf sind r_rel<0 oder r_rel>nachList_Breite zulässig, wird behoben
+void refresh_erwNachbar();
+
+//streiche Eintrag aus erwListe
+void erwListe_rem(vector<int>& liste, int i); 
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k);
 
