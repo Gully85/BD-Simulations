@@ -212,6 +212,17 @@ void init_kreisscheibe(){
 			x = zufall_gleichverteilt_vonbis(-rad, rad);
 			y = zufall_gleichverteilt_vonbis(-rad, rad);
 		} while(x*x + y*y > rad2);
+		x+= 0.5*L;
+		y+= 0.5*L;
+		
+		int jc = (int)(x/nachList_Breite);
+		int kc = (int)(y/nachList_Breite);
+		
+		r2_git[i][0] = jc;
+		r2_git[i][1] = kc;
+		r2_rel[i][0] = x - jc*nachList_Breite + 0.03;
+		r2_rel[i][1] = y - kc*nachList_Breite + 0.03;
+		
 	}//for i
 	
 }//void init_kreisscheibe
