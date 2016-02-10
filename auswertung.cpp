@@ -92,13 +92,17 @@ void init_korrelationsfunktion(){
 	if(g11 != NULL) return;
 	
 	g11 = new vector<double>*[runs];
-	g12 = new vector<double>*[runs];
-	g22 = new vector<double>*[runs];
+	if(0 != N2){
+		g12 = new vector<double>*[runs];
+		g22 = new vector<double>*[runs];
+	}//if N2
 	
 	for(int i=0; i<runs; i++){
 		g11[i] = new vector<double>[obs_anzahl];
-		g12[i] = new vector<double>[obs_anzahl];
-		g22[i] = new vector<double>[obs_anzahl];
+		if(0 != N2){
+			g12[i] = new vector<double>[obs_anzahl];
+			g22[i] = new vector<double>[obs_anzahl];
+		}//if N2
 	}//for i
 	
 }//void init_korrelationsfunktion
@@ -134,6 +138,8 @@ void record_korrelationsfunktion11(int ar, int t){
 
 //schreibt aktuelle Korrelationsfunktion in g12[ar][t].
 void record_korrelationsfunktion12(int ar, int t){
+	if(0 == N2) return;
+	
 	using namespace auswertung;
 	
 	g12[ar][t].assign(korr_bins, 0.0);
@@ -158,6 +164,8 @@ void record_korrelationsfunktion12(int ar, int t){
 
 void record_korrelationsfunktion22(int ar, int t){
 	using namespace auswertung;
+	if(0 == N2) return;
+	
 	//Nullen
 	g22[ar][t].assign(korr_bins, 0.0);
 	
@@ -284,13 +292,17 @@ void init_ftrho(){
 	//reserviere Vektoren für alle record()-Aufrufe
 	ftrho1_re = new vector<double>*[runs];
 	ftrho1_im = new vector<double>*[runs];
-	ftrho2_re = new vector<double>*[runs];
-	ftrho2_im = new vector<double>*[runs];
+	if(0 != N2){
+		ftrho2_re = new vector<double>*[runs];
+		ftrho2_im = new vector<double>*[runs];
+	}//if N2
 	for(int i=0; i<runs; i++){
 		ftrho1_re[i] = new vector<double>[obs_anzahl];
 		ftrho1_im[i] = new vector<double>[obs_anzahl];
-		ftrho2_re[i] = new vector<double>[obs_anzahl];
-		ftrho2_im[i] = new vector<double>[obs_anzahl];
+		if(0 != N2){
+			ftrho2_re[i] = new vector<double>[obs_anzahl];
+			ftrho2_im[i] = new vector<double>[obs_anzahl];
+		}//if N2
 	}//for i bis runs
 	
 }//void init_ftrho
@@ -572,6 +584,7 @@ void record_rhoFFTW(int run, int t){
 	}//for i
 	
 	//Jetzt dasselbe für Typ 2
+	if(0 == N2) return;
 	
 	//Density-Gridding
 	switch(densGrid_Schema){
@@ -681,7 +694,7 @@ void auswerten_rhoFFTW(){
 	fclose(out);
 	
 	//Jetzt dasselbe für Typ 2
-	if(N2 == 0) return;
+	if(0 == N2) return;
 	
 	statistik_1(rho2FFTW_re, rhoFFT_re_mittel, rhoFFT_re_fehler, obs_anzahl);
 	statistik_1(rho2FFTW_im, rhoFFT_im_mittel, rhoFFT_im_fehler, obs_anzahl);
@@ -777,6 +790,7 @@ void auswerten_rhoFFTW_normjerun(){
 	
 	
 	//Jetzt dasselbe für Typ 2
+	if (0 == N2) return;
 	
 	//normalisiere jeden Run mit seinem Startwert
 	for(int run=0; run<runs; run++){

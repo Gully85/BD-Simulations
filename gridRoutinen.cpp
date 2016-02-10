@@ -16,6 +16,8 @@ extern const double nachList_Breite;
 
 extern int** r1_git;
 extern double** r1_rel;
+extern int** r2_git;
+extern double** r2_rel;
 
 extern const double f2_f1;
 
@@ -55,6 +57,7 @@ void gridDensity_NGP(fftw_complex* rho, double gewicht1, double gewicht2){
 	}//for i
 	
 	//Schleife über Teilchen Typ 2
+	if(0 == N2) return;
 	for(i=0; i<N2; i++){
 		//x-Richtung
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
@@ -104,7 +107,8 @@ void inv_gridDensity_NGP(){
 		F1kap[i][1] = Fy[iw(k,l)][0];
 
 	}//for i bis N1
-
+	
+	if(0 == N2) return;
 	for(i=0; i<N2; i++){
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
 		k = (int)(x/densGrid_Breite);
@@ -202,6 +206,7 @@ void gridDensity_CIC(fftw_complex* rho, double gewicht1, double gewicht2){
 
 	}//for i
 	
+	if(0 == N2) return;
 	//Schleife ueber Teilchen Typ 2
 	for(i=0; i<N2; i++){
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
@@ -342,6 +347,7 @@ void inv_gridDensity_CIC(){
 
 	}//for i
 
+	if(0 == N2) return;
 	//Schleife ueber Teilchen Typ 2
 	for(i=0; i<N2; i++){
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
@@ -477,6 +483,7 @@ void gridDensity_TSC(fftw_complex* rho, double gewicht1, double gewicht2){
 
 	}//for i
 	
+	if(0 == N2) return;
 	//Schleife ueber Teilchen Typ 2
 	for(i=0; i<N2; i++){
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
@@ -606,6 +613,7 @@ void inv_gridDensity_TSC(){
 
 	}//for i
 
+	if(0 == N2) return;
 	//Schleife ueber Teilchen
 	for(i=0; i<N2; i++){
 		x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
