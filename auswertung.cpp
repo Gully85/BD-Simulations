@@ -80,6 +80,10 @@ namespace auswertung{
 	//speichert je run das rhoFFTW zur Zeit t=0.
 
 	fftw_plan rhoFFTW_plan = NULL;
+	
+	//für Auswertung mit Johannes' Skript
+	FILE* out_rhojerun = NULL;
+	
 }//namespace auswertung
 
 void init_korrelationsfunktion(){
@@ -198,6 +202,8 @@ void auswerten_korrelationsfunktion(){
 	}//for j bis obs_anzahl
 	fclose(out);
 	
+	if(N2 == 0) return;
+	
 	statistik_1(g22, g_mittel, g_fehler, obs_anzahl);
 	
 	out = fopen("g22.txt", "w");
@@ -208,7 +214,7 @@ void auswerten_korrelationsfunktion(){
 		
 		for(int i=0; i<korr_bins; i++){
 			double r = i*korr_dr;
-			fprintf(out, "%g \t %g \t %g \t %g \n", r, t, g_mittel[i][j], g_fehler[i][j]);
+			fprintf(out, "%g \t %g \t %g \t %g \n", r, t, g_mittel[j][i], g_fehler[j][i]);
 		}//for i
 	}//for j bis obs_anzahl
 	
@@ -217,6 +223,8 @@ void auswerten_korrelationsfunktion(){
 
 
 void auswerten_korrelationsfunktion_mixed(){
+	if(N2 == 0) return;
+	
 	using namespace auswertung;
 	
 	vector<double>* g_mittel = new vector<double>[obs_anzahl];
@@ -382,6 +390,8 @@ void auswerten_ftrho(){
 	}//for t_int, Zeit
 	fclose(out);
 	
+	if(N2 == 0) return;
+	
 	statistik_1(ftrho2_re, ftrho_re_mittel, ftrho_re_fehler, obs_anzahl);
 	statistik_1(ftrho2_im, ftrho_im_mittel, ftrho_im_fehler, obs_anzahl);
 	
@@ -419,8 +429,10 @@ void korrigiere_ftrho(){
 		for(int i=0; i<ftrho1_re[0][0].size(); i++){
 			ftrho1_re[ar][t][i] /= faktor*ftrho_beitraege[i];
 			ftrho1_im[ar][t][i] /= faktor*ftrho_beitraege[i];
-			ftrho2_re[ar][t][i] /= faktor*ftrho_beitraege[i];
-			ftrho2_im[ar][t][i] /= faktor*ftrho_beitraege[i];
+			if(N2 != 0){
+				ftrho2_re[ar][t][i] /= faktor*ftrho_beitraege[i];
+				ftrho2_im[ar][t][i] /= faktor*ftrho_beitraege[i];
+			}
 		}//for i bis size
 	}//for run, t
 }//void korrigiere_ftrho
@@ -502,6 +514,8 @@ void init_rhoFFTW(){
 	}//for i bis rhoFFTW_bins
 	cout << endl;
 	// */
+	
+	out_rhojerun = fopen("rhok_je_run.txt", "w");
 	
 }//void init_rhoFFTW
 
@@ -610,6 +624,31 @@ void record_rhoFFTW(int run, int t){
 void auswerten_rhoFFTW(){
 	
 	using namespace auswertung;
+	
+	
+	//* Für Johannes' Auswertung
+	fprintf(out_rhojerun, "schreibe rho je Run einzeln in diese Datei \n");
+	
+	for(int run=0; run<runs; run++){
+		
+		for(int t_int=0; t_int<obs_anzahl; t_int++){
+			for(int i=0; i<rhoFFTW_bins; i++){
+				double renorm = rho1FFTW_re[run][0][i];
+				double imnorm = rho1FFTW_im[run][0][i];
+				double t = t_int*obs_dt;
+				double k = i*dq_rhoFFTW;
+				double re = rho1FFTW_re[run][t_int][i];
+				double im = rho1FFTW_im[run][t_int][i];
+				
+				fprintf(out_rhojerun, "%g \t %g \t %d \t %g 0.0 %g 0.0 %g \t %g \n", t, k, i, re, im, renorm, imnorm);
+			}//for i bis rhoFFTW_bins
+		}//for t_int
+		
+		fprintf(out_rhojerun, "\n");
+	}//for run
+	fclose(out_rhojerun);
+	// */
+	
 	//erster Index: t/obs_dt, zweiter Index: q/dq
 	vector<double>* rhoFFT_re_mittel = new vector<double>[obs_anzahl];
 	vector<double>* rhoFFT_re_fehler = new vector<double>[obs_anzahl];
@@ -642,6 +681,7 @@ void auswerten_rhoFFTW(){
 	fclose(out);
 	
 	//Jetzt dasselbe für Typ 2
+	if(N2 == 0) return;
 	
 	statistik_1(rho2FFTW_re, rhoFFT_re_mittel, rhoFFT_re_fehler, obs_anzahl);
 	statistik_1(rho2FFTW_im, rhoFFT_im_mittel, rhoFFT_im_fehler, obs_anzahl);
