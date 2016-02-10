@@ -640,7 +640,7 @@ void auswerten_rhoFFTW(){
 	
 	
 	//* Für Johannes' Auswertung
-	fprintf(out_rhojerun, "schreibe rho je Run einzeln in diese Datei \n");
+	//fprintf(out_rhojerun, "schreibe rho je Run einzeln in diese Datei \n");
 	
 	for(int run=0; run<runs; run++){
 		
@@ -653,7 +653,7 @@ void auswerten_rhoFFTW(){
 				double re = rho1FFTW_re[run][t_int][i];
 				double im = rho1FFTW_im[run][t_int][i];
 				
-				fprintf(out_rhojerun, "%g \t %g \t %d \t %g 0.0 %g 0.0 %g \t %g \n", t, k, i, re, im, renorm, imnorm);
+				fprintf(out_rhojerun, "%12.3f%9.5f%7d%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e\n", t, k, i, re, 0.0, im, 0.0, renorm, imnorm, sqrt(re*re+im*im), sqrt(renorm*renorm+imnorm*imnorm));
 			}//for i bis rhoFFTW_bins
 		}//for t_int
 		

@@ -61,7 +61,7 @@ fftw_plan backx_plan=NULL;
 fftw_plan backy_plan=NULL;
 }//namespace dynMeth
 
-//TODO: Das Aktualisieren der Nachbarlisten auslagern!
+
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
 double zeitschritt(double tmax){ 
 	
@@ -90,6 +90,7 @@ double zeitschritt(double tmax){
 	
 	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
 	deltat = optimaler_zeitschritt(F1_WCA, F1kap, F1_noise, deltat, N1);
+	deltat = optimaler_zeitschritt(F2_WCA, F2kap, F2_noise, deltat, N2);
 	
 // 	cout << endl << "Zeitschritt: " << deltat << endl;
 	
