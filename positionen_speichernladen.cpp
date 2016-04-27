@@ -22,7 +22,7 @@ extern const double startpos_kreisradius;
 
 
 // schreibt aktuelle Teilchenpositionen in Datei
-void pos_schreiben(){
+void pos_schreiben_einedatei(){
 	FILE* out = fopen(pos_output_dateiname.c_str(), "w");
 	
 	fprintf(out, "# Es sind %d Typ1- und %d Typ2-Teilchen vorhanden. \n", N1, N2);
@@ -34,7 +34,7 @@ void pos_schreiben(){
 		
 		fprintf(out, "%d \t %d \t %g \t %g \n", i, 1, x, y);
 	}//for i
-	//fprintf(out, "\n");
+	fprintf(out, "\n");
 	for(int i=0; i<N2; i++){
 		double x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
 		double y = r2_git[i][1]*nachList_Breite + r2_rel[i][1];
@@ -42,6 +42,31 @@ void pos_schreiben(){
 		fprintf(out, "%d \t %d \t %g \t %g \n", i, 2, x, y);
 	}//for i bis N2
 	fclose(out);
+}//void pos_schreiben
+
+//schreibt aktuelle Teilchenpositionen in zwei Dateien. FILE-Pointer müssen übergeben werden.
+void pos_schreiben(double t, FILE* datei1, FILE* datei2){
+	
+	for(int i=0; i<N1; i++){
+		double x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+		double y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
+		
+		//Format: t TAB x TAB y
+		fprintf(datei1, "%9.5f \t %g \t %g \n", t, x, y);
+	}//for i
+	fprintf(datei1, "\n");
+	
+	if(0 == N2) return;
+	
+	for(int i=0; i<N2; i++){
+		double x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
+		double y = r2_git[i][1]*nachList_Breite + r2_rel[i][1];
+		
+		//Format: t TAB x TAB y
+		fprintf(datei2, "%9.5f \t %g \t %g \n", t, x, y);
+	}//for i bis N2
+	fprintf(datei2, "\n");
+	
 }//void pos_schreiben
 
 //liest Startpositionen aus Datei. Es muss zuerst Typ 1 und dann Typ 2 stehen.

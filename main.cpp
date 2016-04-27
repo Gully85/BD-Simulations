@@ -40,6 +40,7 @@ extern const bool auswerten_korrfunk_mixed;
 extern const bool auswerten_rhovonk;
 extern const bool auswerten_rhoviaFFTW;
 extern const bool auswerten_rhoFT_normjerun;
+extern const bool auswerten_animation;
 
 /// Globale Felder. Mit Null initialisiert.
 
@@ -69,12 +70,19 @@ for(int run=0; run<runs; run++){
 	
 	cout << "run nr " << run << endl;
 	
+	FILE* pos1; FILE* pos2;
+	if(0 == run){
+		pos1 = fopen("pos1.txt", "w");
+		pos2 = fopen("pos2.txt", "w");
+	}//if erster Run
+	
 	cout << "record obs-Punkt 1 von " << obs_anzahl << endl;
 	if (auswerten_korrfunk) record_korrelationsfunktion11(run, 0);
 	if (auswerten_korrfunk) record_korrelationsfunktion22(run, 0);
 	if (auswerten_korrfunk_mixed) record_korrelationsfunktion12(run,0);
 	if (auswerten_rhovonk) record_ftrho_unkorrigiert(run, 0);
 	if (auswerten_rhoviaFFTW) record_rhoFFTW(run, 0);
+	if (auswerten_animation && run==0) pos_schreiben(0.0, pos1, pos2);
 	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
 		double t=0.0;
@@ -96,7 +104,13 @@ for(int run=0; run<runs; run++){
 		if(auswerten_korrfunk_mixed) record_korrelationsfunktion12(run, obs_nr);
 		if(auswerten_rhovonk) record_ftrho_unkorrigiert(run, obs_nr);
 		if(auswerten_rhoviaFFTW) record_rhoFFTW(run, obs_nr);
+		if(auswerten_animation && run==0) pos_schreiben(obs_nr*obs_dt, pos1, pos2);
 	}//for obs_nr
+	
+	if(auswerten_animation && run==0){
+		fclose(pos1);
+		fclose(pos2);
+	}//if erster Run
 
 }//for run
 
@@ -108,7 +122,7 @@ if(auswerten_rhovonk) auswerten_ftrho();
 if(auswerten_rhoviaFFTW) auswerten_rhoFFTW();
 if(auswerten_rhoFT_normjerun) auswerten_rhoFFTW_normjerun();
 
-pos_schreiben(); //schreibe Positionen am Ende des letzten Runs in Datei pos.txt
+pos_schreiben_einedatei(); //schreibe Positionen am Ende des letzten Runs in Datei pos.txt
 // */
 
 

@@ -40,7 +40,9 @@ void init_allegleich();
 // initialisiert alle Teilchenpositionen innerhalb eines Kreises (Radius 20) in der Mitte der Box
 void init_kreisscheibe();
 // schreibt aktuelle Teilchenpositionen in Datei.
-void pos_schreiben();
+void pos_schreiben_einedatei();
+//schreibt aktuelle Teilchenpositionen in Dateien. FILE-Pointer muss übergeben werden.
+void pos_schreiben(double t, FILE* datei1, FILE* datei2);
 
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
 void WCA_init(); 

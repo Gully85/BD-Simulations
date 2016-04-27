@@ -11,7 +11,7 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 1804; 
+const int N1 = 1804; //darf nicht Null sein!
 const int N2 = 0;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
@@ -98,9 +98,10 @@ const string pos_output_dateiname="pos.txt";
 // Welche Observablen sollen aufgenommen werden?
 const bool auswerten_korrfunk = true;
 const bool auswerten_korrfunk_mixed = true;
-const bool auswerten_rhovonk= true; //via Gitter im k-Raum
+const bool auswerten_rhovonk= false; //via Gitter im k-Raum
 const bool auswerten_rhoviaFFTW = true;
 const bool auswerten_rhoFT_normjerun=true; //nur falls auswerten_rhoviaFFTW gesetzt ist.
+const bool auswerten_animation = true; //schreibt im ersten Durchgang Schnappschüsse in Dateien pos1.txt und pos2.txt
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
