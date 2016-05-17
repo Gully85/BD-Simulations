@@ -4,6 +4,7 @@
 
 #include "signaturen.h"
 #include "zufall.cpp"
+#include <string>
 
 
 extern int** r1_git;
@@ -14,6 +15,10 @@ extern double** r2_rel;
 extern const int N1, N2;
 extern const double L;
 extern const double nachList_Breite;
+
+extern const int jobs;
+extern double**** r1_abs;
+extern double**** r2_abs;
 
 extern const string startpos_dateiname;
 extern const double startpos_kreisradius;
@@ -68,6 +73,8 @@ void pos_schreiben(double t, FILE* datei1, FILE* datei2){
 	fprintf(datei2, "\n");
 	
 }//void pos_schreiben
+
+
 
 //liest Startpositionen aus Datei. Es muss zuerst Typ 1 und dann Typ 2 stehen.
 void init_pos_aus_datei(){

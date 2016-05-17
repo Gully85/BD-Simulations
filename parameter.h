@@ -11,8 +11,8 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 1804; //darf nicht Null sein!
-const int N2 = 0;
+const int N1 = 802; //darf nicht Null sein!
+const int N2 = 1566;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 400.0; //
@@ -25,7 +25,7 @@ const int FFT_samples = 512;
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 135.0; 
+const double lambda_kapillar = 137.4; 
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
 const double kapillar_vorfaktor = 2*M_PI*0.89; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
@@ -43,7 +43,7 @@ const double max_reisedistanz = 0.1;
 //Verhältnis der Radien Typ1 und Typ2. Sigma11/Sigma22
 const double sigma11_22 = 1.25;
 
-//Verhältnis der Radien Sigma11/Sigma12. additive Mischung
+//Verhältnis der Radien Sigma11/Sigma12. additive Mischung erfüllt s12 = 0.5(s11+s22)
 const double sigma11_12 = 0.5*(1.0 + sigma11_22);
 
 // Verhältnis der Mobilitäten Gamma2/Gamma1. Falls Reibung ~ Radius ist, ist Mobilität ~ 1/Radius
@@ -57,7 +57,8 @@ const double eps12_11 = 1.0;
 
 
 //Verhältnis der Kräfte im Referenzzustand
-const double f2_f1 = 1.0/sigma11_22; //gleiche Dichten und Oberflächen
+//const double f2_f1 = 1.0/sigma11_22; //gleiche Dichten und Oberflächen
+const double f2_f1 = - (double) N1/N2; //insgesamt gleichviel Attraktion wie Repulsion
 
 
 
@@ -66,11 +67,16 @@ const double f2_f1 = 1.0/sigma11_22; //gleiche Dichten und Oberflächen
 //mitteln über wie viele runs?
 const int runs = 20;
 
+//wie viele Jobs soll es geben?
+const int jobs = 20;
+
 //Observable aufnehmen in welchem Zeitabstand?
-const double obs_dt = 0.05;
+//const double obs_dt = 0.05; //alter Wert
+const double obs_dt = 2.0; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit
+
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 400;
+const int obs_anzahl = 450; //eine Jeanszeit (Typ 1) ist etwa 35, dh etwa 25 Jeanszeiten gesamt
 
 
 // Binbreite Paarkorrelationsfunktion
@@ -80,27 +86,34 @@ const double korr_dr = 0.05;
 const double korr_rmax = 10.0;
 
 
+// Binbreite Dichteprofil
+const double rhoring_dr = 0.5;
+
+// Anzahl Bins im Dichteprofil
+const int rhoring_bins = 500;
+
+
 //größtes q in rhothilde, in Einheiten dq=4pi/L
 const int ftrho_qbins = 30;
 
 
 // Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
-const int startpos_methode=1;
+const int startpos_methode=5;
 //falls aus Datei: Name der Datei
 const string startpos_dateiname="startpos.txt";
 //falls Kreisscheibe: Radius der Kreisscheibe
 const double startpos_kreisradius = 91.6;
 
-//falls Positionen in Datei geschrieben werden: Name der Datei
+//falls Positionen in EINE Datei geschrieben werden: Name der Datei
 const string pos_output_dateiname="pos.txt";
 
 
 // Welche Observablen sollen aufgenommen werden?
-const bool auswerten_korrfunk = true;
-const bool auswerten_korrfunk_mixed = true;
+const bool auswerten_korrfunk = false;
+const bool auswerten_korrfunk_mixed = false;
 const bool auswerten_rhovonk= false; //via Gitter im k-Raum
-const bool auswerten_rhoviaFFTW = true;
-const bool auswerten_rhoFT_normjerun=true; //nur falls auswerten_rhoviaFFTW gesetzt ist.
+const bool auswerten_rhoviaFFTW = false;
+const bool auswerten_rhoFT_normjerun=false; //nur falls auswerten_rhoviaFFTW gesetzt ist.
 const bool auswerten_animation = true; //schreibt im ersten Durchgang Schnappschüsse in Dateien pos1.txt und pos2.txt
 
 
