@@ -1,7 +1,5 @@
 // stellt Methoden für die Erzeugung von Zufallszahlen bereit
 
-#pragma once
-
 #include <cstdlib>
 #include <math.h>
 #include <time.h>
@@ -11,14 +9,14 @@ void init_rng(){
 }//void init_rng
 
 //gleichverteilte Zufallszahl aus [0.0 , 1.0]
-inline double zufall_gleichverteilt(void){
+double zufall_gleichverteilt(void){
 	const int max = RAND_MAX;
 
 	return (double)rand()/max;	
 }
 
 //gleichverteilte Zufallszahl aus [min , max]
-inline double zufall_gleichverteilt_vonbis(double min, double max){
+double zufall_gleichverteilt_vonbis(double min, double max){
 	double ret = zufall_gleichverteilt(); 	//0.0 bis 1.0
 	
 	ret *= (max - min);			// 0.0 bis (max-min)

@@ -3,8 +3,9 @@
 #include <fftw3.h>
 #include <vector>
 #include <algorithm>
+#include <string>
 
-using std::vector; using std::min;
+using std::vector; using std::min; using std::string;
 
 extern const double dt_max;
 
@@ -107,3 +108,6 @@ void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<d
 double abstand2_11(int i, int j);
 double abstand2_12(int i, int j); // i ist Typ1, j ist Typ2
 double abstand2_22(int i, int j);
+
+//int zu string, ohne führende Nullen
+string int_to_string(int zahl);

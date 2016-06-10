@@ -65,18 +65,18 @@ const double f2_f1 = - (double) N1/N2; //insgesamt gleichviel Attraktion wie Rep
 
 
 //mitteln über wie viele runs?
-const int runs = 20;
+const int runs = 5;
 
 //wie viele Jobs soll es geben?
-const int jobs = 20;
+const int jobs = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
 //const double obs_dt = 0.05; //alter Wert
-const double obs_dt = 2.0; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit
+const double obs_dt = 0.1; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit
 
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 450; //eine Jeanszeit (Typ 1) ist etwa 35, dh etwa 25 Jeanszeiten gesamt
+const int obs_anzahl = 5; //eine Jeanszeit (Typ 1) ist etwa 35, dh etwa 25 Jeanszeiten gesamt
 
 
 // Binbreite Paarkorrelationsfunktion

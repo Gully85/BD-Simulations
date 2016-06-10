@@ -1,12 +1,11 @@
 // stellt Methoden bereit, die die Bewegung der Kolloide behandeln.
-// ausserdem Methoden zur Initialisierung
+// ausserdem Methoden zur Initialisierung der Dynamik
 
-#pragma once
+
 
 #include "parameter.h"
-#include "signaturen.h"
-#include "zufall.cpp"
-#include "gridRoutinen.cpp"
+#include "signaturen2.h"
+
 #include <fftw3.h>
 #include <math.h>
 #include <cstdio>
@@ -20,20 +19,25 @@ using std::vector;
 extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
+extern const double obs_dt;
+
+/*
 extern int** r1_git;
 extern double** r1_rel;
 extern int** r2_git;
 extern double** r2_rel;
+*/
 
 extern const double sigma11_22, sigma11_12, Gamma2_1, eps22_11, eps12_11;
-
 extern const double f2_f1;
 
 extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
 
 
 const double dx = densGrid_Breite;
+const int Z = densGrid_Zellen;
 
+/*
 /// semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei. Namespace = Dateiname
 namespace dynamik_methoden{
 fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
@@ -60,12 +64,12 @@ fftw_plan forward_plan=NULL;
 fftw_plan backx_plan=NULL;
 fftw_plan backy_plan=NULL;
 }//namespace dynMeth
-
+*/
 
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
-double zeitschritt(double tmax){ 
+double RunZustand::RunDynamik::zeitschritt(double tmax){ 
 	
-	using namespace dynamik_methoden;
+	//using namespace dynamik_methoden;
 	
 	double deltat=tmax; //tatsaechliche Dauer. Koennte kleiner werden als tmax
 	
@@ -79,8 +83,7 @@ double zeitschritt(double tmax){
 	berechne_WCA22();
 	addiere_WCA12();
 	berechne_kapkraefte();
-	berechne_zufallskraefte(N1, F1_noise);
-	berechne_zufallskraefte(N2, F2_noise);
+	berechne_zufallskraefte();
 	
 	/* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
 	for(int teilchen=0; teilchen<N; teilchen++){
@@ -89,8 +92,9 @@ double zeitschritt(double tmax){
 	// */
 	
 	//bestimme optimalen Zeitschritt, so dass kein Teilchen weiter als max_reisedistanz bewegt wird
-	deltat = optimaler_zeitschritt(F1_WCA, F1kap, F1_noise, deltat, N1);
-	deltat = optimaler_zeitschritt(F2_WCA, F2kap, F2_noise, deltat, N2);
+	//deltat = optimaler_zeitschritt(F1_WCA, F1kap, F1_noise, deltat, N1);
+	//deltat = optimaler_zeitschritt(F2_WCA, F2kap, F2_noise, deltat, N2);
+	deltat = optimaler_zeitschritt();
 	
 // 	cout << endl << "Zeitschritt: " << deltat << endl;
 	
@@ -125,8 +129,8 @@ double zeitschritt(double tmax){
 
 
 //erneuere erwNachbarlisten. Beim Aufruf sind r_rel<0 oder r_rel>nachList_Breite zulässig, wird behoben
-void refresh_erwNachbar(){
-	using namespace dynamik_methoden;
+void RunZustand::RunDynamik::refresh_erwNachbar(){
+	// using namespace dynamik_methoden;
 	//Typ 1 über Zellgrenze bewegt?
 	for(int teilchen=0; teilchen<N1; teilchen++){
 		if(r1_rel[teilchen][0] < 0.0 || r1_rel[teilchen][0] > nachList_Breite
@@ -236,14 +240,22 @@ void refresh_erwNachbar(){
 	
 }//void refresh_erwNachbar
 
-
+void RunZustand::zeitschritte_bis_obs(){
+	while(t < obs_dt){
+		t += dyn.zeitschritt(obs_dt-t);
+		schritte_seit_obs++;
+	}//while
+}//void RunDynamik::zeitschritte_bis_obs
 
 
 // initialisiert Felder/Nachbarlisten fuer WCA-Kraefte. Erwartet, dass in r_git schon die Gittervektoren der Teilchenpositionen stehen.
-void WCA_init(){
-	using namespace dynamik_methoden;
+void RunZustand::RunDynamik::WCA_init(){
+	//using namespace dynamik_methoden;
 	//vector<int>** erwNachbarn ist die erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
-
+	
+	//WCA-Kraefte. Erster Index Teilchen, zweiter Index Raumrichtung
+	F1_WCA = new double*[N1];
+	F2_WCA = new double*[N2];
 	
 	//reserviere Speicher
 	if(erwNachbarn1 == NULL){
@@ -307,9 +319,29 @@ void WCA_init(){
 } //void WCA_init
 
 //initialisiert Felder, plant Fouriertrafos
-void kapkraefte_init(){
-	using namespace dynamik_methoden;
+void RunZustand::RunDynamik::kapkraefte_init(){
+	//using namespace dynamik_methoden;
 /// alloziere Felder
+	
+	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+	F1kap = new double*[N1];
+	F2kap = new double*[N2];
+
+	//Zufallskraefte, gleiche Indices
+	F1_noise = new double*[N1];
+	F2_noise = new double*[N2];
+	for(int i=0; i<N1; i++){
+		F1kap[i] = new double[2];
+		F1_WCA[i]= new double[2];
+		F1_noise[i] = new double[2];
+	}//for i
+	for(int i=0; i<N2; i++){
+		F2kap[i] = new double[2];
+		F2_WCA[i]= new double[2];
+		F2_noise[i] = new double[2];
+	}//for i
+
+	
 	//Dichte vor FFT. Index-Wrapping. rhox[iw(j,k)][0] ist die Dichte in Zelle (j,k). rhox[][1] ist der Imaginaerteil, Null.
 	if(rhox == NULL){
 		rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
@@ -355,17 +387,19 @@ void kapkraefte_init(){
 	}//if sinxG==NULL
 	
 /// plane FFTs
-	if(forward_plan == NULL){
-		forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_PATIENT);
-		backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_PATIENT);
-		backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_PATIENT);
-	}//if forward_plan==NULL
+	#pragma omp critical
+	{
+	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_PATIENT);
+	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_PATIENT);
+	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_PATIENT);
+	}
+	
 }//void kapkraefte_init
 
 
 // berechnet WCA-Kraefte. Schreibt sie in F1_WCA[N1][2]
-void berechne_WCA11(){
-	using namespace dynamik_methoden;
+void RunZustand::RunDynamik::berechne_WCA11(){
+	//using namespace dynamik_methoden;
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
 	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
@@ -437,9 +471,9 @@ void berechne_WCA11(){
 }//void berechne_WCA11
 
 //berechne WCA-Kräfte aus 22-Wechselwirkung, schreibe sie in F2_WCA[N2][2]
-void berechne_WCA22(){
+void RunZustand::RunDynamik::berechne_WCA22(){
 	
-	using namespace dynamik_methoden;
+	//using namespace dynamik_methoden;
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
 	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
@@ -515,8 +549,8 @@ void berechne_WCA22(){
 }//void berechne_WCA22
 
 //berechne WCA-Kräfte aus 12-Wechselwirkung, addiere sie in F1_WCA[N1][2] und F2_WCA[N2][2] 
-void addiere_WCA12(){
-	using namespace dynamik_methoden;
+void RunZustand::RunDynamik::addiere_WCA12(){
+	//using namespace dynamik_methoden;
 	
 	int i,j2; // i läuft über Typ 1, j läuft über Typ 2
 	vector<int>::iterator j; //läuft über die Typ2-Nachbarliste
@@ -581,17 +615,17 @@ void addiere_WCA12(){
 
 
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. 
-void berechne_kapkraefte(){
+void RunZustand::RunDynamik::berechne_kapkraefte(){
 	
-	using namespace dynamik_methoden;
+	//using namespace dynamik_methoden;
 	int j,l;
 	double x,y;
 
 /// Density-Gridding: Schreibe Dichte in rhox[][0]
 	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, 1.0, f2_f1); break; //TODO gridDensity auf global umstellen, namespace nutzen
-		case 1: gridDensity_CIC(rhox, 1.0, f2_f1); break;
-		case 2: gridDensity_TSC(rhox, 1.0, f2_f1); break;
+		case 0: gridDensity_NGP(); break;
+		case 1: gridDensity_CIC(); break;
+		case 2: gridDensity_TSC(); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 
@@ -625,105 +659,35 @@ void berechne_kapkraefte(){
 
 }//void berechne_kapkraefte
 
-//Schreibt 2*anzahl Zufallszahlen mit Varianz 1.0 in dn[anzahl][2]. Nicht gaussverteilt, sondern gleichverteilt.
-void berechne_zufallskraefte(int anzahl, double** dn){
+//Schreibt Zufallszahlen mit Varianz 1.0 in F1_noise[N1][2] und F2_noise[N2][2]. Nicht gaussverteilt, sondern gleichverteilt.
+void RunZustand::RunDynamik::berechne_zufallskraefte(){
 	const double wurzelfuenf = sqrt(5.0);
 	double x,y;
-	for(int i=0; i<anzahl; i++){
+	for(int i=0; i<N1; i++){
 		do{
 			x = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
 			y = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
 		} while(x*x + y*y > 5.0);
 		
-		dn[i][0] = x;
-		dn[i][1] = y;
+		F1_noise[i][0] = x;
+		F1_noise[i][1] = y;
 		
-	}//for i
+	}//for i bis N1
+	
+	for(int i=0; i<N2; i++){
+		do{
+			x = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
+			y = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0,1.0);
+		} while(x*x + y*y > 5.0);
+		F2_noise[i][0] = x;
+		F2_noise[i][1] = y;
+	}//for i bis N2
 }//void berechne_zufallskraefte
-
-
-//reserviere Speicher, setze Teilchen auf Startpositionen, rufe andere init() auf.
-void main_init(){
-	
-	using namespace dynamik_methoden;
-	
-	ausgabe_jeansgroessen();
-
-	init_korrelationsfunktion();
-	init_ftrho();  //Observable rho(k), berechnet via Summe über Teilchen und über Gitter im k-Raum
-	init_rhoFFTW();//Observable rho(k), berechnet via density-Gridding und FFTW 
-	
-	// Teilchenpositionen, Gittervektor. Erster Index TeilchenNr, zweiter Index 0 fuer x und 1 fuer y-Richtung
-	if(r1_git == NULL){
-		r1_git = new int*[N1];
-		// dasgleiche, Vektor innerhalb der Zelle
-		r1_rel = new double*[N1];
-		r2_git = new int*[N2];
-		r2_rel = new double*[N2];
-		for(int i=0; i<N1; i++){
-			r1_git[i] = new int[2];
-			r1_rel[i] = new double[2];
-		}//for i
-		for(int i=0; i<N2; i++){
-			r2_git[i] = new int[2];
-			r2_rel[i] = new double[2];
-		}//for i
-	}//if r_git == NULL
-	
-	//Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
-	if(F1kap == NULL){
-		F1kap = new double*[N1];
-		F2kap = new double*[N2];
-		//WCA-Kraefte, gleiche Indices
-		F1_WCA = new double*[N1];
-		F2_WCA = new double*[N2];
-		//Zufallskraefte, gleiche Indices
-		F1_noise = new double*[N1];
-		F2_noise = new double*[N2];
-		for(int i=0; i<N1; i++){
-			F1kap[i] = new double[2];
-			F1_WCA[i]= new double[2];
-			F1_noise[i] = new double[2];
-		}//for i
-		for(int i=0; i<N2; i++){
-			F2kap[i] = new double[2];
-			F2_WCA[i]= new double[2];
-			F2_noise[i] = new double[2];
-		}//for i
-	}//if F1kap==NULL
-	
-	switch(startpos_methode){
-		case 1:
-			init_zufallspos();
-			break;
-		case 2:
-			init_pos_aus_datei();
-			break;
-		case 3:
-			init_gitterstart();
-			break;
-		case 4:
-			init_allegleich();
-			break;
-		case 5:
-			init_kreisscheibe();
-			break;
-		default:
-			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5" << endl;
-			return;
-	}//switch startpos_methode
-	
-	
-	//init Kraftberechnungen
-	WCA_init();
-	kapkraefte_init();
-	
-}//void main_init
 
 
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.
 double G(int j, int k){
-	using namespace dynamik_methoden;
+	//using namespace dynamik_methoden;
 	
 	double qx = dq*(((int)(j+Z*0.5))%Z - 0.5*Z );
 	double qy = dq*(((int)(k+Z*0.5))%Z - 0.5*Z );
@@ -757,6 +721,7 @@ void erwListe_rem(vector<int>& liste, int k){
 	liste.erase(i);
 }//void erwListe_rem
 
+/*
 //bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
 double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int NN){
 	if (0==NN) return deltat;
@@ -807,6 +772,72 @@ double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, do
 	}//for teilchen
 	return ret;
 }//double optimaler_zeitschritt 
+// */
+
+double RunZustand::RunDynamik::optimaler_zeitschritt(){
+	double ret = dt_max; //späterer Return-Wert, kann nur kleiner werden
+
+	const double mrd = max_reisedistanz;
+	
+	////Loesen quadratischer Gleichungen:
+	// Aus m < |Fdt + sqrt(2T dt)dn| erhaelt man
+	// Falls F==0: dt < m^2/(2T (dn^2))
+	// Falls F!=0: dt < (w-|u|)^2 mit u=dn*sqrt(2T)/(8F) und w=sqrt(u^2 + m/(4|F|))
+	
+	// hier:
+	// m = mrd
+	// F = F_WCA+Fkap
+	// dn = F_noise
+	// T=T und dt = ret
+	
+	//Erst Typ 1
+	for(int teilchen=0; teilchen<N1; teilchen++){
+		//x-Richtung
+		double F = F1_WCA[teilchen][0] + F1kap[teilchen][0];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F1_noise[teilchen][0]*F1_noise[teilchen][0]));
+		else{
+			double u = F1_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+		
+		//y-Richtung
+		F = F1_WCA[teilchen][1] + F1kap[teilchen][1];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F1_noise[teilchen][1]*F1_noise[teilchen][1]));
+		else{
+			double u = F1_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+	}//for teilchen
+	
+	//Dann Typ 2
+	for(int teilchen=0; teilchen<N2; teilchen++){
+		//x-Richtung
+		double F = F2_WCA[teilchen][0] + F2kap[teilchen][0];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F2_noise[teilchen][0]*F2_noise[teilchen][0]));
+		else{
+			double u = F2_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+		
+		//y-Richtung
+		F = F2_WCA[teilchen][1] + F2kap[teilchen][1];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F2_noise[teilchen][1]*F2_noise[teilchen][1]));
+		else{
+			double u = F2_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+	}//for teilchen
+	
+	return ret;
+}//double RunZustand::RunDynamik::optimaler_zeitschritt
 
 
 
@@ -820,3 +851,217 @@ double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, do
 
 
 
+
+//liest Startpositionen aus Datei. Es muss zuerst Typ 1 und dann Typ 2 stehen.
+void RunZustand::init_pos_aus_datei(){
+	const string startpos_dateiname="startpos.txt";
+	
+	FILE* in = fopen(startpos_dateiname.c_str(), "r");
+	
+	//erste zwei Zeilen überspringen
+	char buffer[100];
+	//zwei Zeilen lesen. Wenn beim Lesen von mindestens einer ein Fehler kommt, abbrechen
+	if(NULL == fgets(buffer, 100, in) || NULL == fgets(buffer, 100, in)){
+		cout << "Fehler beim Lesen der Inputdatei, Zeile 1 oder 2" << endl << flush;
+		return;
+	}//if Fehler beim Lesen
+	
+	// lese zeilenweise
+	int teilchenNr=0;
+	int typ;
+	double x,y;
+	float xf, yf;
+	bool fehler=false;
+	for(int zeile=0; zeile<N1; zeile++){
+		if(4 != fscanf(in, "%d \t %d \t %g \t %g", &teilchenNr, &typ, &xf, &yf)) fehler=true;
+		if(teilchenNr != zeile || typ != 1) fehler=true;
+		
+		if(fehler){
+			cout << "Fehler beim Lesen der Inputdatei, Zeile " << zeile << endl << flush;
+			return;
+		}//if fehler
+		
+		x = (double) xf;
+		y = (double) yf;
+		if(x<0.0 || x>L || y<0.0 || y>L){
+			cout << "Fehler beim Laden: Koordinaten von Teilchen "<<teilchenNr<<" (Typ 1), x="<<x<<", y="<<y<<" out of range!" << endl << flush;
+			return;
+		}//if x oder y out of range
+		r1_git[teilchenNr][0] = (int) (x/nachList_Breite);
+		r1_git[teilchenNr][1] = (int) (y/nachList_Breite);
+		r1_rel[teilchenNr][0] = x - r1_rel[teilchenNr][0]*nachList_Breite;
+		r1_rel[teilchenNr][1] = y - r1_rel[teilchenNr][1]*nachList_Breite;
+		
+	}//for int zeile
+	for(int zeile=0; zeile<N2; zeile++){
+		if(4 != fscanf(in, "%d \t %d \t %g \t %g", &teilchenNr, &typ, &xf, &yf)) fehler=true;
+		if(teilchenNr != zeile || typ != 2) fehler=true; 
+		
+		if(fehler){
+			cout << "Fehler beim Lesen der Inputdatei, Zeile " << zeile+N1<< ". Möglicherweise sind nicht genau " <<N1<<"+"<<N2<<"Teilchen in startpos.txt?" << endl<<flush;
+			return;
+		}//if fehler
+		
+		x = (double) xf;
+		y = (double) yf;
+		if(x<0.0 || x>L || y<0.0 || y>L){
+			cout << "Fehler beim Laden: Koordinaten von Teilchen "<<teilchenNr<<" (Typ 2), x="<<x<<", y="<<y<<" out of range!" << endl << flush;
+			return;
+		}//if x oder y out of range
+		
+		r2_git[teilchenNr][0] = (int) (x/nachList_Breite);
+		r2_git[teilchenNr][1] = (int) (y/nachList_Breite);
+		r2_rel[teilchenNr][0] = x - r2_rel[teilchenNr][0]*nachList_Breite;
+		r2_rel[teilchenNr][1] = y - r2_rel[teilchenNr][1]*nachList_Breite;
+
+	}//for zeile
+	
+	fclose(in);
+	
+}//void init_pos_aus_datei
+
+
+// initialisiert Teilchenpositionen auf Zufallspositionen. Schreibt sie in r_git und r_rel
+void RunZustand::init_zufallspos(){
+
+	
+//bestimme zufaellige Positionen in [0,L], setze die Teilchen dort hin
+	for(int i=0; i<N1; i++){
+		double x = zufall_gleichverteilt_vonbis(0.0, L);
+		double y = zufall_gleichverteilt_vonbis(0.0, L);
+
+		int jc = (int) x/nachList_Breite;
+		int kc = (int) y/nachList_Breite;
+
+		r1_git[i][0] = jc;
+		r1_git[i][1] = kc;
+		r1_rel[i][0] = x - jc*nachList_Breite;
+		r1_rel[i][1] = y - kc*nachList_Breite;
+		
+	}//for i
+	
+	for(int i=0; i<N2; i++){
+		double x = zufall_gleichverteilt_vonbis(0.0, L);
+		double y = zufall_gleichverteilt_vonbis(0.0, L);
+		
+		int jc = (int) x/nachList_Breite;
+		int kc = (int) y/nachList_Breite;
+		
+		r2_git[i][0] = jc;
+		r2_git[i][1] = kc;
+		r2_rel[i][0] = x - jc*nachList_Breite;
+		r2_rel[i][1] = y - kc*nachList_Breite;
+	}//for i
+	
+} //void init_zufallspos
+
+
+// bestimme EINE Position in [0,L], setze alle Teilchen dorthin
+void RunZustand::init_allegleich(){
+	double x = zufall_gleichverteilt_vonbis(0.0,L);
+	double y = zufall_gleichverteilt_vonbis(0.0,L);
+	
+	// x = 2.0;
+	// y = 0.0;
+	
+	int jc = (int) (x/nachList_Breite);
+	int kc = (int) (y/nachList_Breite);
+	for(int i=0; i<N1; i++){
+		r1_git[i][0] = jc;
+		r1_git[i][1] = kc;
+		r1_rel[i][0] = x - jc*nachList_Breite;
+		r1_rel[i][1] = y - kc*nachList_Breite;
+	}//for i
+	
+	
+	//Typ 2 analog
+	x = zufall_gleichverteilt_vonbis(0.0, L);
+	y = zufall_gleichverteilt_vonbis(0.0, L);
+	jc = (int) (x/nachList_Breite);
+	kc = (int) (y/nachList_Breite);
+	
+	for(int i=0; i<N2; i++){
+		r2_git[i][0] = jc;
+		r2_git[i][1] = kc;
+		r2_rel[i][0] = x - jc*nachList_Breite;
+		r2_rel[i][1] = y - kc*nachList_Breite;
+	}//for i
+}//void init_allegleich
+
+// initialisiert alle Teilchenpositionen zufällig gleichverteilt in einem Kreis in der Mitte der Box
+void RunZustand::init_kreisscheibe(){
+	const double rad = startpos_kreisradius;
+	const double rad2 = rad*rad;
+// 	double x=2.0;
+// 	double y=2.0;
+	for(int i=0; i<N1; i++){
+		double x,y;
+		do{
+			x = zufall_gleichverteilt_vonbis(-rad,rad);
+			y = zufall_gleichverteilt_vonbis(-rad,rad);
+		} while (x*x + y*y > rad2);
+		x+= 0.5*L;
+		y+= 0.5*L;
+
+		
+		int jc = (int) (x/nachList_Breite);
+		int kc = (int) (y/nachList_Breite);
+		
+		r1_git[i][0] = jc;
+		r1_git[i][1] = kc;
+		r1_rel[i][0] = x - jc*nachList_Breite + 0.03;
+		r1_rel[i][1] = y - kc*nachList_Breite + 0.03;
+		
+	}//for i
+	
+	for(int i=0; i<N2; i++){
+		double x,y;
+		do{
+			x = zufall_gleichverteilt_vonbis(-rad, rad);
+			y = zufall_gleichverteilt_vonbis(-rad, rad);
+		} while(x*x + y*y > rad2);
+		x+= 0.5*L;
+		y+= 0.5*L;
+		
+		int jc = (int)(x/nachList_Breite);
+		int kc = (int)(y/nachList_Breite);
+		
+		r2_git[i][0] = jc;
+		r2_git[i][1] = kc;
+		r2_rel[i][0] = x - jc*nachList_Breite + 0.03;
+		r2_rel[i][1] = y - kc*nachList_Breite + 0.03;
+		
+	}//for i
+	
+}//void init_kreisscheibe
+
+
+// initialisiert Teilchenpositionen gleichverteilt in der Box. Baut ein quadratisches Gitter auf. Wenn N keine Quadratzahl ist, bleiben dabei Gitterplätze frei.
+void RunZustand::init_gitterstart(){
+	
+	if(0 != N2){
+		cout << "Fehler: Gitterstart mit zwei Teilchentypen noch nicht implementiert!" << endl << flush;
+		return;
+	}//if N2 ungleich Null
+	// es sollen N Teilchen auf ein 2dim-Gitter verteilt werden. In jeder Richtung also sqrt(N) viele Teilchen auf die Länge L. Falls N keine Quadratzahl ist, sogar ceil(sqrt(N)).
+	double wurzelN = ceil(sqrt(N1));
+	double schrittweite = L/wurzelN;
+	int index =0;
+	for(int i=0; i<wurzelN; i++)
+	for(int j=0; j<wurzelN; j++){
+		double x = i*schrittweite;
+		double y = j*schrittweite;
+		
+		int ic = (int) (x/nachList_Breite);
+		int jc = (int) (y/nachList_Breite);
+		
+		r1_git[index][0] = ic;
+		r1_git[index][1] = jc;
+		r1_rel[index][0] = x - ic*nachList_Breite;
+		r1_rel[index][1] = y - jc*nachList_Breite;
+		
+		if(++index == N1) return;
+		
+	}//for i,j
+	
+}//void init_gitterstart

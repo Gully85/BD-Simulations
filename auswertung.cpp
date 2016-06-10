@@ -1,12 +1,14 @@
-			
 //stellt Methoden bereit, die in der Auswertung benutzt werden
 
-#pragma once
+
 
 #include "parameter.h"
+#include "signaturen2.h"
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <fftw3.h>
+#include <iostream>
 
 
 extern const double korr_dr;
@@ -35,14 +37,17 @@ extern const double nachList_Breite;
 extern const int N1;
 extern const int N2;
 
+
+extern const bool auswerten_korrfunk, auswerten_korrfunk_mixed, auswerten_rhovonk, auswerten_rhoviaFFTW, auswerten_animation;
 extern const bool auswerten_rho1FT_normjerun;
 extern const bool auswerten_rho2FT_normjerun;
 
-//TODO durchgehen, überspringen wenn N2==0
+
 
 using std::vector; using std::cout; using std::endl;
 
 //semi-globale Variablen, sichtbar für die Methoden in dieser Datei. Namespace=Dateiname.
+/*
 namespace auswertung{
 	//Paarkorrelationsfunktion. Erster Index Durchlauf, zweiter Index Zeit in Einheiten obs_dt, dritter Index r in Einheiten korr_dr
 	vector<double>** g11 = NULL;
@@ -85,34 +90,65 @@ namespace auswertung{
 	FILE* out_rhojerun = NULL;
 	
 }//namespace auswertung
+*/
 
-void init_korrelationsfunktion(){
-	using namespace auswertung;
+void RunZustand::RunObs::obs_init(int run){
+	if (auswerten_korrfunk) init_korrelationsfunktion();
+	if (auswerten_rhovonk) init_ftrho();
+	if (auswerten_rhoviaFFTW) init_rhoFFTW();
+	
+	if(auswerten_animation){
+		string dateiname = "pos1_.txt";
+		dateiname.insert(5, int_to_string(run));
+		pos1 = fopen(dateiname.c_str(), "w");
+		fprintf(pos1, "# Format: t TAB x TAB y \n\n");
+		
+		if(0 != N2){
+			dateiname = "pos2_.txt";
+			dateiname.insert(5, int_to_string(run));
+			pos2 = fopen(dateiname.c_str(), "w");
+			fprintf(pos2, "# Format: t TAB x TAB y \n\n");
+		}
+	}//if auswerten_animation
+}//void RunObs::obs_init()
+
+
+void RunZustand::obs_point(int nr){
+	//cout << "record obs-Punkt "<<nr+1<<" von " << obs_anzahl << endl;
+	
+	if (auswerten_korrfunk) obs.record_korrelationsfunktion11(nr);
+	if (auswerten_korrfunk) obs.record_korrelationsfunktion22(nr);
+	if (auswerten_korrfunk_mixed) obs.record_korrelationsfunktion12(nr);
+	if (auswerten_rhovonk) obs.record_ftrho_unkorrigiert(nr);
+	if (auswerten_rhoviaFFTW) obs.record_rhoFFTW(nr);
+	if (auswerten_animation) obs.schreibe_pos(nr);
+	
+	schritte_seit_obs = 0;
+	t=0.0;
+	obs_nr++;
+	
+}//void RunObs::obs_point
+
+void RunZustand::RunObs::init_korrelationsfunktion(){
+	//using namespace auswertung;
 	
 	if(g11 != NULL) return;
 	
-	g11 = new vector<double>*[runs];
+	g11 = new vector<double>[obs_anzahl];
 	if(0 != N2){
-		g12 = new vector<double>*[runs];
-		g22 = new vector<double>*[runs];
+		g12 = new vector<double>[obs_anzahl];
+		g22 = new vector<double>[obs_anzahl];
 	}//if N2
 	
-	for(int i=0; i<runs; i++){
-		g11[i] = new vector<double>[obs_anzahl];
-		if(0 != N2){
-			g12[i] = new vector<double>[obs_anzahl];
-			g22[i] = new vector<double>[obs_anzahl];
-		}//if N2
-	}//for i
 	
 }//void init_korrelationsfunktion
 
-//Schreibt aktuelle Korrelationsfunktion in g11[ar][t].
-void record_korrelationsfunktion11(int ar, int t){
-	using namespace auswertung;
+//Schreibt aktuelle Korrelationsfunktion in g11[t].
+void RunZustand::RunObs::record_korrelationsfunktion11(int t){
+	//using namespace auswertung;
 	
 	//Nullen
-	g11[ar][t].assign(korr_bins, 0.0); //Nullen an alle Stellen
+	g11[t].assign(korr_bins, 0.0); //Nullen an alle Stellen
 	
 	//konstanter Vorfaktor
 	const double rho1 = N1/L/L;
@@ -130,19 +166,19 @@ void record_korrelationsfunktion11(int ar, int t){
 		
 		if(index < 0 || index >= korr_bins) continue;
 		
-		g11[ar][t][index] += vorfaktor /(2*index+1);
+		g11[t][index] += vorfaktor /(2*index+1);
 	}//for j
 	
 	
 }//void record_korrelationsfunktion11
 
-//schreibt aktuelle Korrelationsfunktion in g12[ar][t].
-void record_korrelationsfunktion12(int ar, int t){
+//schreibt aktuelle Korrelationsfunktion in g12[t].
+void RunZustand::RunObs::record_korrelationsfunktion12(int t){
 	if(0 == N2) return;
 	
-	using namespace auswertung;
+	//using namespace auswertung;
 	
-	g12[ar][t].assign(korr_bins, 0.0);
+	g12[t].assign(korr_bins, 0.0);
 	
 	//konstanter Vorfaktor
 	const double rho2 = N2/L/L;
@@ -156,18 +192,18 @@ void record_korrelationsfunktion12(int ar, int t){
 		
 		if(index < 0 || index >= korr_bins) continue;
 		
-		g12[ar][t][index] += vorfaktor/(2*index+1);
+		g12[t][index] += vorfaktor/(2*index+1);
 	}//for i,j
 	
 	
 }//void record_korrelationsfunktion12
 
-void record_korrelationsfunktion22(int ar, int t){
-	using namespace auswertung;
+void RunZustand::RunObs::record_korrelationsfunktion22(int t){
+	//using namespace auswertung;
 	if(0 == N2) return;
 	
 	//Nullen
-	g22[ar][t].assign(korr_bins, 0.0);
+	g22[t].assign(korr_bins, 0.0);
 	
 	//konstanter Vorfaktor
 	const double rho2 = N2/L/L;
@@ -181,10 +217,11 @@ void record_korrelationsfunktion22(int ar, int t){
 		
 		if(index<0 || index>=korr_bins) continue;
 		
-		g22[ar][t][index] += vorfaktor/(2*index+1);
+		g22[t][index] += vorfaktor/(2*index+1);
 	}//for i,j
 }//void record_korrelationsfunktion22
 
+/*
 // Korrelationsfunktion auswerten: Mittelung, Fehlerbalken berechnen und alles in Datei schreiben
 void auswerten_korrelationsfunktion(){
 	using namespace auswertung;
@@ -254,10 +291,10 @@ void auswerten_korrelationsfunktion_mixed(){
 	}//for t_int bis obs_anzahl	
 	fclose(out);
 }//void auswerten_korrelationsfunktion_mixed
+// */
 
-
-void init_ftrho(){
-	using namespace auswertung;
+void RunZustand::RunObs::init_ftrho(){
+	//using namespace auswertung;
 	
 	if(ftrho1_re != NULL) return;
 	
@@ -290,33 +327,26 @@ void init_ftrho(){
 	}//for i,j
 	
 	//reserviere Vektoren für alle record()-Aufrufe
-	ftrho1_re = new vector<double>*[runs];
-	ftrho1_im = new vector<double>*[runs];
+	ftrho1_re = new vector<double>[obs_anzahl];
+	ftrho1_im = new vector<double>[obs_anzahl];
 	if(0 != N2){
-		ftrho2_re = new vector<double>*[runs];
-		ftrho2_im = new vector<double>*[runs];
+		ftrho2_re = new vector<double>[obs_anzahl];
+		ftrho2_im = new vector<double>[obs_anzahl];
 	}//if N2
-	for(int i=0; i<runs; i++){
-		ftrho1_re[i] = new vector<double>[obs_anzahl];
-		ftrho1_im[i] = new vector<double>[obs_anzahl];
-		if(0 != N2){
-			ftrho2_re[i] = new vector<double>[obs_anzahl];
-			ftrho2_im[i] = new vector<double>[obs_anzahl];
-		}//if N2
-	}//for i bis runs
 	
-}//void init_ftrho
+	
+}//void RunObs::init_ftrho
 
-//schreibt aktuelles rho(k) in ftrho_re[ar][t] und ftrho_im
-void record_ftrho_unkorrigiert(int ar, int t){
-	using namespace auswertung;
+//schreibt aktuelles rho(k) in ftrho_re[t] und ftrho_im
+void RunZustand::RunObs::record_ftrho_unkorrigiert(int t){
+	//using namespace auswertung;
 	
 	//Vektor auf richtige Länge bringen, Nullen reinschreiben
-	ftrho1_re[ar][t].assign(ftrho_qabs2.size(), 0.0);
-	ftrho1_im[ar][t].assign(ftrho_qabs2.size(), 0.0);
+	ftrho1_re[t].assign(ftrho_qabs2.size(), 0.0);
+	ftrho1_im[t].assign(ftrho_qabs2.size(), 0.0);
 	if(N2 != 0){
-		ftrho2_re[ar][t].assign(ftrho_qabs2.size(), 0.0);
-		ftrho2_im[ar][t].assign(ftrho_qabs2.size(), 0.0);
+		ftrho2_re[t].assign(ftrho_qabs2.size(), 0.0);
+		ftrho2_im[t].assign(ftrho_qabs2.size(), 0.0);
 	}//if N2
 	
 	const int qbins2 = ftrho_qbins*ftrho_qbins;
@@ -344,8 +374,8 @@ void record_ftrho_unkorrigiert(int ar, int t){
 		
 		//addiere an richtige Stelle in S[.] diese Summe
 		int stelle = ftrho_order[stelle_in_order++];
-		ftrho1_re[ar][t][stelle] += sum_c;
-		ftrho1_im[ar][t][stelle] += sum_s;
+		ftrho1_re[t][stelle] += sum_c;
+		ftrho1_im[t][stelle] += sum_s;
 		
 		if(N2 != 0){
 			sum_c = 0.0;
@@ -359,13 +389,14 @@ void record_ftrho_unkorrigiert(int ar, int t){
 				sum_c += cos(skalarprodukt);
 				sum_s += sin(skalarprodukt);
 			}//for teilchenNr bis N2
-			ftrho2_re[ar][t][stelle] += sum_c;
-			ftrho2_im[ar][t][stelle] += sum_s;
+			ftrho2_re[t][stelle] += sum_c;
+			ftrho2_im[t][stelle] += sum_s;
 		}//if N2
 		
 	}//for i,j
 }//void record_ftrho
 
+/*
 // FTrho auswerten: ruft korrigiere() und statistik() auf und schreibt Mittelwerte/Fehlerbalken in Datei. 
 void auswerten_ftrho(){
 	
@@ -412,7 +443,7 @@ void auswerten_ftrho(){
 	for(int t_int=0; t_int<obs_anzahl; t_int++){
 		double t = t_int*obs_dt;
 		for(int i=0; i<ftrho2_re[0][0].size(); i++){
-			double q = ftrho_dq*ftrho_qabs2[i];
+			double q = ftrho_dq*sqrt(ftrho_qabs2[i]);
 			
 			double re = ftrho_re_mittel[t_int][i];
 			double im = ftrho_im_mittel[t_int][i];
@@ -448,6 +479,7 @@ void korrigiere_ftrho(){
 		}//for i bis size
 	}//for run, t
 }//void korrigiere_ftrho
+// */
 
 //suche Position im vector, an der die Zahl a steht. Wenn nicht drin, gebe -1 zurück
 int suche(int a, vector<int> v){
@@ -462,8 +494,8 @@ int suche(int a, vector<int> v){
 
 
 //reserviere Speicher und plane FFTs für rho(k) via FFTW. Variable vector<double>rhoFFTW[run][t][k/dq_rhoFFTW]
-void init_rhoFFTW(){
-	using namespace auswertung;
+void RunZustand::RunObs::init_rhoFFTW(){
+	//using namespace auswertung;
 	
 	if(NULL != rho1FFTW_re) return;
 	
@@ -473,29 +505,24 @@ void init_rhoFFTW(){
 	rhox = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 	rhok = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*Z*Z);
 		
-	// Hier steht das berechnete rho(k) drin. Erster Index Durchlauf, zweiter Index t/obs_dt, dritter Index q/dq_rhoFFTW
-	rho1FFTW_re = new vector<double>*[runs];
-	rho1FFTW_im = new vector<double>*[runs];
-	rho2FFTW_re = new vector<double>*[runs];
-	rho2FFTW_im = new vector<double>*[runs];
-	for(int i=0; i<runs; i++){
-		rho1FFTW_re[i] = new vector<double>[obs_anzahl];
-		rho1FFTW_im[i] = new vector<double>[obs_anzahl];
-		rho2FFTW_re[i] = new vector<double>[obs_anzahl];
-		rho2FFTW_im[i] = new vector<double>[obs_anzahl];
-	}//for i bis runs
+	// Hier steht das berechnete rho(k) drin. Erster Index t/obs_dt, zweiter Index q/dq_rhoFFTW
+	rho1FFTW_re = new vector<double>[obs_anzahl];
+	rho1FFTW_im = new vector<double>[obs_anzahl];
+	rho2FFTW_re = new vector<double>[obs_anzahl];
+	rho2FFTW_im = new vector<double>[obs_anzahl];
 	
 	
+	rhoFFTW_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD, FFTW_PATIENT);
 	
 	//Imaginärteil von rhox auf Null setzen, der wird sich nie ändern
 	for(int i=0; i<Z; i++)
 	for(int j=0; j<Z; j++)
 		rhox[iw(i,j)][1] = 0.0;
 	
-	rhoFFTW_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD, FFTW_PATIENT);
 	
-	const int rhoFFTW_bins = 0.5*Z*dq_dqFT;
-	rhoFFTW_beitraege = new int[rhoFFTW_bins];
+	//2-dim Gridding im k-Raum. Bereite Gridding vor, dh teste, wie viele Beiträge in jedem Bin landen
+	const int rhoFFTW_bins = 0.5*Z*dq_dqFT; //Anzahl Bins
+	rhoFFTW_beitraege = new int[rhoFFTW_bins]; //Anzahl Beiträge je Bin
 	for(int i=0; i<rhoFFTW_bins; i++){
 		rhoFFTW_beitraege[i]=0;
 	}//for i
@@ -527,20 +554,19 @@ void init_rhoFFTW(){
 	cout << endl;
 	// */
 	
-	out_rhojerun = fopen("rhok_je_run.txt", "w");
-	
 }//void init_rhoFFTW
 
-//berechnet aktuelles rho(k) via FFTW, schreibt es in rhoFFTW[ar][t][.]
-void record_rhoFFTW(int run, int t){
+
+//berechnet aktuelles rho(k) via FFTW, schreibt es in rhoFFTW[t][.]
+void RunZustand::RunObs::record_rhoFFTW(int t){
 	
-	using namespace auswertung;
+	//using namespace auswertung;
 	
 	//Density-Gridding, dh berechne aus Teilchenpositionen eine kontinuierliche Dichte
 	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, 1.0, 0.0); break;
-		case 1: gridDensity_CIC(rhox, 1.0, 0.0); break;
-		case 2: gridDensity_TSC(rhox, 1.0, 0.0); break;
+		case 0: gridDensity_NGP1(); break;
+		case 1: gridDensity_CIC1(); break;
+		case 2: gridDensity_TSC1(); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 	
@@ -557,8 +583,8 @@ void record_rhoFFTW(int run, int t){
 		}//if i+j ungerade
 	
 	//Binning, dabei Verschiebung und Index-Wrapping berücksichtigen. 
-	rho1FFTW_re[run][t].assign(rhoFFTW_bins, 0.0);
-	rho1FFTW_im[run][t].assign(rhoFFTW_bins, 0.0);
+	rho1FFTW_re[t].assign(rhoFFTW_bins, 0.0);
+	rho1FFTW_im[t].assign(rhoFFTW_bins, 0.0);
 	
 	for(int i=0; i<Z; i++){
 		double x_dq = ((i+Z/2)%Z - Z/2);
@@ -571,15 +597,15 @@ void record_rhoFFTW(int run, int t){
 				continue;
 			}//if out of bounds
 			
-			rho1FFTW_re[run][t][bin] += rhok[iw(i,j)][0];
-			rho1FFTW_im[run][t][bin] += rhok[iw(i,j)][1];
+			rho1FFTW_re[t][bin] += rhok[iw(i,j)][0];
+			rho1FFTW_im[t][bin] += rhok[iw(i,j)][1];
 		}//for j
 	}//for i
 	
 	//Skalierung richtig machen: Faktor Z^2/L^2 rausdividieren
 	for(int i=0; i<rhoFFTW_bins; i++){
-		rho1FFTW_re[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
-		rho1FFTW_im[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+		rho1FFTW_re[t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+		rho1FFTW_im[t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
 
 	}//for i
 	
@@ -588,9 +614,9 @@ void record_rhoFFTW(int run, int t){
 	
 	//Density-Gridding
 	switch(densGrid_Schema){
-		case 0: gridDensity_NGP(rhox, 0.0, 1.0); break;
-		case 1: gridDensity_CIC(rhox, 0.0, 1.0); break;
-		case 2: gridDensity_TSC(rhox, 0.0, 1.0); break;
+		case 0: gridDensity_NGP2(); break;
+		case 1: gridDensity_CIC2(); break;
+		case 2: gridDensity_TSC2(); break;
 		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
 	}//switch
 	
@@ -606,8 +632,8 @@ void record_rhoFFTW(int run, int t){
 		}//if i+j ungerade
 	
 	//Binning, dabei Verschiebung und Index-Wrapping berücksichtigen
-	rho2FFTW_re[run][t].assign(rhoFFTW_bins, 0.0);
-	rho2FFTW_im[run][t].assign(rhoFFTW_bins, 0.0);
+	rho2FFTW_re[t].assign(rhoFFTW_bins, 0.0);
+	rho2FFTW_im[t].assign(rhoFFTW_bins, 0.0);
 	
 	for(int i=0; i<Z; i++){
 		double x_dq = ((i+Z/2)%Z - Z/2);
@@ -620,47 +646,69 @@ void record_rhoFFTW(int run, int t){
 				continue;
 			}//if out of bounds
 			
-			rho2FFTW_re[run][t][bin] += rhok[iw(i,j)][0];
-			rho2FFTW_im[run][t][bin] += rhok[iw(i,j)][1];
+			rho2FFTW_re[t][bin] += rhok[iw(i,j)][0];
+			rho2FFTW_im[t][bin] += rhok[iw(i,j)][1];
 		}//for j
 	}//for i
 	
 	//Skalierung: Faktor Z^2/L^2 rausdividieren
 	for(int i=0; i<rhoFFTW_bins; i++){
-		rho2FFTW_re[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
-		rho2FFTW_im[run][t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+		rho2FFTW_re[t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
+		rho2FFTW_im[t][i] *= L*L/(Z*Z)/rhoFFTW_beitraege[i];
 	}//for i
 	
 }//void record_rhoFFTW
 
+
+
+//schreibt aktuelle Positionen in pos1_(run).txt und pos2_(run).txt. FILE*-Pointer auf diese Dateien gibt es schon, sind Felder der Klasse und in obs_init() aufgemacht worden. Parameter = Zeit in Einheiten obs_dt
+void RunZustand::RunObs::schreibe_pos(int nr){
+	for(int i=0; i<N1; i++){
+		double x = r1_rel[i][0] + nachList_Breite*r1_git[i][0];
+		double y = r1_rel[i][1] + nachList_Breite*r1_git[i][1];
+		fprintf(pos1, "%g \t %g \t %g \n", nr*obs_dt, x, y);
+	}//for i bis N1
+	fprintf(pos1, "\n");
+	
+	if(0 == N2) return;
+	for(int i=0; i<N2; i++){
+		double x = r2_rel[i][0] + nachList_Breite*r2_git[i][0];
+		double y = r2_rel[i][1] + nachList_Breite*r2_git[i][1];
+		fprintf(pos2, "%g \t %g \t %g \n", nr*obs_dt, x, y);
+	}//for i bis N2
+	fprintf(pos2, "\n");
+}
+
+
+/*
 //berechnet Mittelwerte und Fehler von rhoFFT, schreibt in Datei rhoFFT.txt
 void auswerten_rhoFFTW(){
 	
 	using namespace auswertung;
 	
 	
-	//* Für Johannes' Auswertung
-	//fprintf(out_rhojerun, "schreibe rho je Run einzeln in diese Datei \n");
-	
-	for(int run=0; run<runs; run++){
-		
-		for(int t_int=0; t_int<obs_anzahl; t_int++){
-			for(int i=0; i<rhoFFTW_bins; i++){
-				double renorm = rho1FFTW_re[run][0][i];
-				double imnorm = rho1FFTW_im[run][0][i];
-				double t = t_int*obs_dt;
-				double k = i*dq_rhoFFTW;
-				double re = rho1FFTW_re[run][t_int][i];
-				double im = rho1FFTW_im[run][t_int][i];
-				
-				fprintf(out_rhojerun, "%12.3f%9.5f%7d%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e\n", t, k, i, re, 0.0, im, 0.0, renorm, imnorm, sqrt(re*re+im*im), sqrt(renorm*renorm+imnorm*imnorm));
-			}//for i bis rhoFFTW_bins
-		}//for t_int
-		
-		fprintf(out_rhojerun, "\n");
-	}//for run
-	fclose(out_rhojerun);
-	// */
+// 	// Für Johannes' Auswertung
+// 	//fprintf(out_rhojerun, "schreibe rho je Run einzeln in diese Datei \n");
+// 	
+// 	for(int run=0; run<runs; run++){
+// 		
+// 		for(int t_int=0; t_int<obs_anzahl; t_int++){
+// 			for(int i=0; i<rhoFFTW_bins; i++){
+// 				double renorm = rho1FFTW_re[run][0][i];
+// 				double imnorm = rho1FFTW_im[run][0][i];
+// 				double t = t_int*obs_dt;
+// 				double k = i*dq_rhoFFTW;
+// 				double re = rho1FFTW_re[run][t_int][i];
+// 				double im = rho1FFTW_im[run][t_int][i];
+// 				
+// 				fprintf(out_rhojerun, "%12.3f%9.5f%7d%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e%12.4e\n", t, k, i, re, 0.0, im, 0.0, renorm, imnorm, sqrt(re*re+im*im), sqrt(renorm*renorm+imnorm*imnorm));
+// 			}//for i bis rhoFFTW_bins
+// 		}//for t_int
+// 		
+// 		fprintf(out_rhojerun, "\n");
+// 	}//for run
+// 	fclose(out_rhojerun);
+// 	// 
 	
 	//erster Index: t/obs_dt, zweiter Index: q/dq
 	vector<double>* rhoFFT_re_mittel = new vector<double>[obs_anzahl];
@@ -840,7 +888,6 @@ void auswerten_rhoFFTW_normjerun(){
 
 
 
-
 //berechnet Mittelwerte und Varianzen von input[][][]. Mittelung über den ersten Index, der bis runs geht. Der zweite geht bis anzahl. mittelwerte und varianzen müssen schon (leer) initialisiert sein.
 void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<double>*& varianzen, int anzahl){
 	int ar; //aktueller run
@@ -848,14 +895,6 @@ void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<d
 	int j; // aktuelle Stelle im vector, letzter Index
 	
 	
-	/*
-	//erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-	if(mittelwerte == NULL){
-		mittelwerte = new vector<double>[anzahl];
-		varianzen = new vector<double>[anzahl];
-	}//if mittelwerte==NULL
-	else cout << "Warnung: statistik_1() aufgerufen, Ergebnisvektoren schon benutzt!" << std::endl;
-	// */
 	
 	for(i=0; i<anzahl; i++){ //zweiter Index im Input, erster in mittelwerte
 		for(j=0; j<input[0][0].size(); j++){ //dritter Index im Input, zweiter in Mittelwerte
@@ -878,6 +917,130 @@ void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<d
 	}//for i, zweiter Index im Input bzw erster in mittelwerte
 	
 }//void statistik_1
+// */
+
+
+
+void RunZustand::schreibe_obs(){
+	if(auswerten_korrfunk){
+		if(auswerten_korrfunk_mixed)
+			obs.schreibe_korrfunk_alle(nr);
+		else
+			obs.schreibe_korrfunk(nr);
+	}//if auswerten_korrfunk
+	
+	if(auswerten_rhovonk)
+		obs.schreibe_ftrho(nr);
+	
+	if(auswerten_rhoviaFFTW)
+		obs.schreibe_rhoFFT(nr);
+	
+	//rho_normjerun braucht hier nicht einzeln auftauchen: Dies sind die Zwischenergebnisse eines einzelnen Runs
+		
+}//void RunZustand::schreibe_obs
+
+
+
+
+//schreibt g11 und g22 in eine Datei
+void RunZustand::RunObs::schreibe_korrfunk(int run_nr){
+	string dateiname = "g_run.txt";
+	dateiname.insert(5, int_to_string(run_nr));
+	FILE* out = fopen(dateiname.c_str(), "w");
+	fprintf(out, "# Format: t TAB r TAB g11 TAB g22\n\n");
+	
+	for(int obs=0; obs<obs_anzahl; obs++){
+		double t = obs*obs_dt;
+		for(int bin=0; bin<korr_bins; bin++){
+			double x = bin*korr_dr;
+			fprintf(out, "%g \t %g \t %g \t %g \n", t, x, g11[obs][bin], g22[obs][bin]);
+		}//for bin
+		fprintf(out, "\n");
+	}//for int t
+	fclose(out);
+	
+}//void RunObs_schreibe_korrfunk
+
+//schreibt g11, g12, g22 in eine Datei
+void RunZustand::RunObs::schreibe_korrfunk_alle(int run_nr){
+	string dateiname = "g_run.txt";
+	dateiname.insert(5, int_to_string(run_nr));
+	FILE* out = fopen(dateiname.c_str(), "w");
+	fprintf(out, "# Format: t TAB r TAB g11 TAB g12 TAB g22\n\n");
+	
+	for(int obs=0; obs<obs_anzahl; obs++){
+		double t = obs*obs_dt;
+		for(int bin=0; bin<korr_bins; bin++){
+			double x = bin*korr_dr;
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \n", t, x, g11[obs][bin], g12[obs][bin], g22[obs][bin]);
+		}//for bin
+		fprintf(out, "\n");
+	}//for int t
+	fclose(out);
+	
+}//void RunObs::schreibe_korrfunk_alle
+
+//schreibt ftrho in eine Datei. Erkennt, ob N2==0, und schreibt evtl rho2 auch
+void RunZustand::RunObs::schreibe_ftrho(int run){
+	string dateiname = "ftrho_run.txt";
+	dateiname.insert(9, int_to_string(run));
+	FILE* out = fopen(dateiname.c_str(), "w");
+	if(0 == N2) 	fprintf(out, "# Format: t TAB q TAB rho_re TAB rho_im \n\n");
+	else		fprintf(out, "# Format: t TAB q TAB rho1_re TAB rho1_im TAB rho2_re TAB rho2_im \n\n");
+	
+	for(int obs=0; obs<obs_anzahl; obs++){
+		double t = obs*obs_dt;
+		for(int i=0; i<ftrho1_re[0].size(); i++){
+			double q = dq*ftrho_dq*sqrt(ftrho_qabs2[i]);
+			if (0 == N2)
+				fprintf(out, "%g \t %g \t %g \t %g \n", t, q, ftrho1_re[obs][i], ftrho1_im[obs][i]);
+			else
+				fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", t, q, ftrho1_re[obs][i], ftrho1_im[obs][i], ftrho2_re[obs][i], ftrho2_im[obs][i]);
+		}//for i
+		fprintf(out, "\n");
+	}//for obs
+	fclose(out);
+}//void RunObs::schreibe_ftrho
+
+//schreibt rho via FFTW in eine Datei. Erkennt, ob N2==0, und schreibt entsprechend rho2 auch
+void RunZustand::RunObs::schreibe_rhoFFT(int run){
+	string dateiname = "rhoFFT_run.txt";
+	dateiname.insert(10, int_to_string(run));
+	FILE* out = fopen(dateiname.c_str(), "w");
+	if(0 == N2) 	fprintf(out, "# Format: t TAB q TAB rho_re TAB rho_im \n\n");
+	else		fprintf(out, "# Format: t TAB q TAB rho1_re TAB rho1_im TAB rho2_re TAB rho2_im \n\n");
+	
+	for(int obs=0; obs<obs_anzahl; obs++){
+		double t = obs*obs_dt;
+		for(int i=0; i<rhoFFTW_bins; i++){
+			double q = dq_rhoFFTW*i;
+			if(0 == N2)
+				fprintf(out, "%g \t %g \t %g \t %g \n", t, q, rho1FFTW_re[obs][i], rho1FFTW_im[obs][i]);
+			else
+				fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \n", t, q, rho1FFTW_re[obs][i], rho1FFTW_im[obs][i], rho2FFTW_re[obs][i], rho2FFTW_im[obs][i]);
+		}//for i
+		fprintf(out, "\n");
+	}//for obs
+	
+	fclose(out);
+}//void RunObs::schreibe_rhoFFT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
