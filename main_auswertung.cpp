@@ -24,14 +24,14 @@ int main(){
 		r1_abs[job] = new double**[obs_anzahl];
 		if(0 != N2) r2_abs[job] = new double**[obs_anzahl];
 		
-		for(int i=0; i<obs_anzahl; i++){
-			r1_abs[job][i] = new double*[N1];
-			if(0 != N2) r2_abs[job][i] = new double*[N2];
+		for(int t=0; t<obs_anzahl; t++){
+			r1_abs[job][t] = new double*[N1];
+			if(0 != N2) r2_abs[job][t] = new double*[N2];
 			
-			for(int j=0; j<N1; j++)
-				r1_abs[job][i][j] = new double[2];
-			for(int j=0; j<N2; j++)
-				r2_abs[job][i][j] = new double[2];
+			for(int teilchen=0; teilchen<N1; teilchen++)
+				r1_abs[job][t][teilchen] = new double[2];
+			for(int teilchen=0; teilchen<N2; teilchen++)
+				r2_abs[job][t][teilchen] = new double[2];
 		}//for i bis obs_anzahl
 	}
 	
