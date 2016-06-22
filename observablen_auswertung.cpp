@@ -71,7 +71,7 @@ void berechne_mobischwerpunkte(){
 	//berechne Mobischwerpunkte. Schreibe sie je Job in eine Datei
 	for(int job=0; job<jobs; job++){
 		string dateiname = "Sgamma_run.txt";
-		dateiname.insert(10, int_to_string(job));
+		dateiname.insert(10, int_to_string(job+1));
 		FILE* out = fopen(dateiname.c_str(), "w");
 		fprintf(out, "# Format: t x y x1 y1 x2 y2 \n# Erklärung: (x,y) ist der Mobilitätsschwerpunkt, (x1,y2) der Mittelpunkt Typ1, (x2,y2) der Mittelpunkt Typ2\n\n");
 		
@@ -126,27 +126,33 @@ void berechne_mittelpunkte(){
 	// Null setzen, Speicher reservieren
 	S1 = new double**[jobs];
 	S2 = new double**[jobs];
-	//Sgamma = new double**[jobs];
+	Sgamma = new double**[jobs];
 	for(int job=0; job<jobs; job++){
 		S1[job] = new double*[obs_anzahl];
 		S2[job] = new double*[obs_anzahl];
-		//Sgamma[job] = new double*[obs_anzahl];
+		Sgamma[job] = new double*[obs_anzahl];
 		for(int t=0; t<obs_anzahl; t++){
 			S1[job][t] = new double[2];
 			S2[job][t] = new double[2];
-			//Sgamma[job][t] = new double[2];
+			Sgamma[job][t] = new double[2];
 			
 			S1[job][t][0] = 0.0;
 			S1[job][t][1] = 0.0;
 			S2[job][t][0] = 0.0;
 			S2[job][t][1] = 0.0;
-			//Sgamma[job][t][0] = 0.0;
-			//Sgamma[job][t][1] = 0.0;
+			Sgamma[job][t][0] = 0.0;
+			Sgamma[job][t][1] = 0.0;
 		}//for t bis obs_anzahl
 	}//for job
 	
 	//für jeden Job und Zeitpunkt: für beide Teilchentypen Mittelpunkte berechnen, das ist je Raumrichtung eine Mittelung über cos/sin(2pi/L x)
 	for(int job=0; job<jobs; job++){
+		//schreibe je Job die Mittelpunkte in eine Datei
+		string dateiname = "Sgamma_run.txt";
+		dateiname.insert(10, int_to_string(job+1));
+		FILE* out = fopen(dateiname.c_str(), "w");
+		fprintf(out, "# Format: t x y x1 y1 x2 y2 \n# Erklärung: (x,y) ist der Mobilitätsschwerpunkt, (x1,y2) der Mittelpunkt Typ1, (x2,y2) der Mittelpunkt Typ2\n\n");
+		
 		for(int t=0; t<obs_anzahl; t++){
 			double x1quer_re = 0.0; //Typ 1, x-Richtung aufgerollt, x'-Richtung. xquer in den Notizen
 			double x1quer_im = 0.0; //Typ 1, x-Richtung aufgerollt, y'-Richtung. yquer in den Notizen
@@ -190,6 +196,12 @@ void berechne_mittelpunkte(){
 			
 			theta = atan2(-y2quer_im, -y2quer_re) + M_PI;
 			S2[job][t][0] = theta / zweipi_L;
+			
+			//quick and quite dirty: Sgamma = (S1 + S2)/2
+			Sgamma[job][t][0] = 0.5*(S1[job][t][0] + S2[job][t][0]);
+			Sgamma[job][t][1] = 0.5*(S1[job][t][0] + S2[job][t][0]);
+			
+			fprintf(out, "%g \t %g \t %g \t %g \t %g \t %g \t %g \n\n", zeit*obs_dt, Sgamma[job][zeit][0], Sgamma[job][zeit][1], S1[job][zeit][0], S1[job][zeit][1], S2[job][zeit][0], S2[job][zeit][1]);
 		}//for t
 	}//for int job
 	
