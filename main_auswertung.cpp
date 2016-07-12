@@ -34,15 +34,21 @@ int main(){
 				r2_abs[job][t][teilchen] = new double[2];
 		}//for i bis obs_anzahl
 	}
-	
+	cout << "Lese Positionen..." << endl;
 	//lese Positionen (zu allen Zeiten) aus Dateien
 	rvont_lesen();
 	
-	//berechne geforderte Observable
+	cout << "Berechne Mittelpunkte und Dichteprofile..." << endl;
+	
 	berechne_dichteprofile();
 	
+	cout << "Berechne Korrelationsfunktionen..." << endl;
+	berechne_korrelationsfunktionen();
+	
+	cout << "Berechne Mittelwerte und Fehler..." << endl;
 	//schreibe Ergebnisse
 	auswerten_dichteprofile();
+	auswerten_korrelationsfunktionen();
 	
 	return 0;
 	
