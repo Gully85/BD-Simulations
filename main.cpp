@@ -112,7 +112,7 @@ int main(){
 	}//for runs
 	}
 	
-omp_set_num_threads(3);
+//omp_set_num_threads(3);
 #pragma omp parallel for
 for(int run=0; run<runs; run++){
 	

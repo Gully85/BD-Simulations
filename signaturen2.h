@@ -20,6 +20,8 @@ string int_to_string(int zahl);
 //suche Zahl im vector<int>. Falls nicht drin, wird -1 zurückgegeben
 int suche(int a, vector<int> v);
 
+//fftw_complex beispiel;
+
 //enthält alle Informationen/Variablen/Felder, um den Zustand eines Runs zu definieren
 class RunZustand{
 
@@ -27,7 +29,36 @@ public:
 	//enthält alle Informationen/Variablen/Felder, um Zeitschritte durchzuführen
 	class RunDynamik{
 	public:
-		RunDynamik()=default; //Konstruktor: Wenn ein RunDynamik erzeugt wird, WCA_init() und kap_init() aufrufen.
+		RunDynamik(){
+			r1_git = NULL;
+			r2_git = NULL;
+			r1_rel = NULL;
+			r2_rel = NULL;
+			
+			rhox = NULL;
+			rhok = NULL;
+			sinxG = NULL;
+			sinyG = NULL;
+			
+			Fxk = NULL;
+			Fyk = NULL;
+			Fx = NULL;
+			Fy = NULL;
+			
+			erwNachbarn1 = NULL;
+			erwNachbarn2 = NULL;
+			
+			F1kap = NULL;
+			F2kap = NULL;
+			F1_WCA = NULL;
+			F2_WCA = NULL;
+			F1_noise = NULL;
+			F2_noise = NULL;
+			
+			forward_plan = NULL;
+			backx_plan = NULL;
+			backy_plan = NULL;
+		} 
 		virtual ~RunDynamik()=default;
 		
 		//Ein Zeitschritt, Länge so dass max_reisedistanz eingehalten wird, höchstens tmax
@@ -64,38 +95,38 @@ public:
 		void kapkraefte_init(); //Speicher reservieren, FFTs planen
 		
 		//Dichte nach Gridding, Ortsraum. Index-Wrapping
-		fftw_complex* rhox=NULL;
+		fftw_complex* rhox;
 		
 		//dasselbe fouriertransformiert. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
-		fftw_complex* rhok=NULL;
+		fftw_complex* rhok;
 		
 		//Konstantes Feld sin(qx dx)/dx G(q). Index-Wrapping, Verschiebung.
-		double* sinxG=NULL;
-		double* sinyG=NULL;
+		double* sinxG;
+		double* sinyG;
 		
 		//Produkt rhok mal sinxG bzw mal sinyG. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
-		fftw_complex* Fxk=NULL;
-		fftw_complex* Fyk=NULL;
+		fftw_complex* Fxk;
+		fftw_complex* Fyk;
 		
 		//rücktransformierte Kräfte. Index-Wrapping.
-		fftw_complex* Fx=NULL;
-		fftw_complex* Fy=NULL;
+		fftw_complex* Fx;
+		fftw_complex* Fy;
 		
 		//Nachbarlisten, je Typ eine. Erster Index ZellenNr in x-Richtung, zweiter Index in y-Richtung. Im vector stehen die Indices aller Teilchen in gleicher oder benachbarter Zelle.
-		vector<int>** erwNachbarn1=NULL;
-		vector<int>** erwNachbarn2=NULL;
+		vector<int>** erwNachbarn1;
+		vector<int>** erwNachbarn2;
 		
 		//Kapillarkräfte, je Typ ein Feld. Erster Index TeilchenNr, zweiter Raumrichtung.
-		double** F1kap=NULL;
-		double** F2kap=NULL;
+		double** F1kap;
+		double** F2kap;
 		
 		//WCA-Kräfte auf Typ 1. Erster Index TeilchenNr, zweiter Raumrichtung.
-		double** F1_WCA=NULL;
-		double** F2_WCA=NULL;
+		double** F1_WCA;
+		double** F2_WCA;
 		
 		//Zufallskräfte auf Typ 1. Erster Index TeilchenNr, zweiter Raumrichtung.
-		double** F1_noise=NULL;
-		double** F2_noise=NULL;
+		double** F1_noise;
+		double** F2_noise;
 		
 		//FFTW-Pläne für Berechnung der Kapillarkräfte
 		fftw_plan forward_plan;
@@ -161,9 +192,9 @@ public:
 
 		
 		//Paarkorrelationsfunktion. Erster Index Zeit in Einheiten obs_dt, zweiter Index r in Einheiten korr_dr
-		vector<double>* g11 = NULL;
-		vector<double>* g12 = NULL;
-		vector<double>* g22 = NULL;
+		vector<double>* g11;
+		vector<double>* g12;
+		vector<double>* g22;
 		
 	protected:
 		
@@ -181,10 +212,10 @@ public:
 
 
 		//Dichte im k-Raum, Realteil und Imaginärteil. Erster Index Zeit/obs_dt, zweiter Index q (nachschlagen in order[] und qabs2[])
-		vector<double>* ftrho1_re = NULL;
-		vector<double>* ftrho1_im = NULL;
-		vector<double>* ftrho2_re = NULL;
-		vector<double>* ftrho2_im = NULL;
+		vector<double>* ftrho1_re;
+		vector<double>* ftrho1_im;
+		vector<double>* ftrho2_re;
+		vector<double>* ftrho2_im;
 
 		//Hilfsfelder für Dichte im k-Raum
 		vector<int> ftrho_order;
@@ -194,26 +225,26 @@ public:
 
 
 		//Dichte nach Density-Gridding für rho(k) via FFTW
-		fftw_complex* rhox = NULL; //Ortsraum. Index-Wrapping.
-		fftw_complex* rhok = NULL; //k-Raum. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
+		fftw_complex* rhox; //Ortsraum. Index-Wrapping.
+		fftw_complex* rhok; //k-Raum. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
 
 		//Fouriertransformierte Dichte, berechnet via FFTW. Erster Index obs/dt, zweiter Index q/dq_rhoFFTW. Kein Index-Wrapping, Verschiebung oder Vorzeichen. Binning.
-		vector<double>* rho1FFTW_re = NULL;
-		vector<double>* rho1FFTW_im = NULL;
-		vector<double>* rho2FFTW_re = NULL;
-		vector<double>* rho2FFTW_im = NULL;
+		vector<double>* rho1FFTW_re;
+		vector<double>* rho1FFTW_im;
+		vector<double>* rho2FFTW_re;
+		vector<double>* rho2FFTW_im;
 		
 		//zaehlt für jeden Bin mit, wie viele k drinliegen
-		int* rhoFFTW_beitraege=NULL;
+		int* rhoFFTW_beitraege;
 		
 		//speichert je run das rhoFFTW zur Zeit t=0.
-		fftw_plan rhoFFTW_plan = NULL;
+		fftw_plan rhoFFTW_plan;
 		
 		
 		
 		//Dateizeiger, in den Positionen der Teilchen je Obs-Point geschrieben werden
-		FILE* pos1 = NULL;
-		FILE* pos2 = NULL;
+		FILE* pos1;
+		FILE* pos2;
 		
 
 		//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.
