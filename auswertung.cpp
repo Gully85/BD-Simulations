@@ -38,7 +38,7 @@ extern const int N1;
 extern const int N2;
 
 
-extern const bool auswerten_korrfunk, auswerten_korrfunk_mixed, auswerten_rhovonk, auswerten_rhoviaFFTW, auswerten_animation;
+extern const bool auswerten_korrfunk, auswerten_korrfunk_mixed, auswerten_rhovonk, auswerten_rhoviaFFTW, auswerten_animation, auswerten_abstand;
 extern const bool auswerten_rho1FT_normjerun;
 extern const bool auswerten_rho2FT_normjerun;
 
@@ -110,6 +110,11 @@ void RunZustand::RunObs::obs_init(int run){
 			fprintf(pos2, "# Format: t TAB x TAB y \n\n");
 		}
 	}//if auswerten_animation
+	
+	if(auswerten_abstand){
+            ab2 = fopen("abstaende2.txt", "w");
+            fprintf(ab2, "# Format: t TAB Mittelwert des Abstands Typ2-Teilchen zur Boxmitte \n\n");
+        }//if auswerten_abstand
 }//void RunObs::obs_init()
 
 
@@ -122,6 +127,7 @@ void RunZustand::obs_point(int nr){
 	if (auswerten_rhovonk) obs.record_ftrho_unkorrigiert(nr);
 	if (auswerten_rhoviaFFTW) obs.record_rhoFFTW(nr);
 	if (auswerten_animation) obs.schreibe_pos(nr);
+        if (auswerten_abstand) obs.schreibe_abstaende(nr);
 	
 	schritte_seit_obs = 0;
 	t=0.0;
@@ -677,9 +683,30 @@ void RunZustand::RunObs::schreibe_pos(int nr){
 		fprintf(pos2, "%g \t %g \t %g \n", nr*obs_dt, x, y);
 	}//for i bis N2
 	fprintf(pos2, "\n");
+        fflush(pos2);
 }
 
-
+//mittelt Abstand der Typ2-Teilchen zur Boxmitte. Schreibt es in den FILE*-Pointer ab2
+void RunZustand::RunObs::schreibe_abstaende(int t){
+    //Mitte der Box
+    const double mitte = 0.5*L;
+    
+    //bestimme Mittelwert
+    double mittelwert = 0.0;
+    for(int i=0; i<N2; i++){
+        double x = r2_rel[i][0] + nachList_Breite*r2_git[i][0];
+        double y = r2_rel[i][1] + nachList_Breite*r2_git[i][1];
+        
+        double dx = x - mitte;
+        double dy = y - mitte;
+        
+        mittelwert += sqrt(dx*dx + dy*dy);
+    }//for i
+    mittelwert /= N2;
+    
+    fprintf(ab2, "%g \t %g \n", t*obs_dt, mittelwert);
+    fflush(ab2);
+}//void schreibe_abstaende
 /*
 //berechnet Mittelwerte und Fehler von rhoFFT, schreibt in Datei rhoFFT.txt
 void auswerten_rhoFFTW(){

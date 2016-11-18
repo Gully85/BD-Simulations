@@ -11,31 +11,32 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 802; //darf nicht Null sein!
-const int N2 = 1566;
+const int N1 = 1; //darf nicht Null sein!
+const int N2 = 16;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 400.0; //
+const double L = 1600.0; //
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt.
-const int FFT_samples = 512; 
+const int FFT_samples = 2048; 
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 137.4; 
+const double lambda_kapillar = 60.0; 
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
-const double kapillar_vorfaktor = 2*M_PI*0.89; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
+//const double kapillar_vorfaktor = 2*M_PI*0.89; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
+const double kapillar_vorfaktor = 20000.0;
 
 // Temperatur, in Einheiten kT/eps
 const double T = 1.0;
 
 
 // maximaler Zeitschritt
-const double dt_max = 0.05;
+const double dt_max = 50.00;
 
 //maximale Reisedistanz in einem Zeitschritt
 const double max_reisedistanz = 0.1;
@@ -61,22 +62,30 @@ const double eps12_11 = 1.0;
 const double f2_f1 = - (double) N1/N2; //insgesamt gleichviel Attraktion wie Repulsion
 
 
+//Warnung ausgeben, wenn WCA-Kräfte auftreten
+const bool noWCA = false;
+//keine Zufallskräfte, dh keine Diffusion
+const bool noRNG = false;
+//FFTW nicht so aufwändig initialisieren
+const bool quickInit = false;
+//Bewegung der Teilchen einschränken: Nur radial, Winkel zur x-Achse nach jedem Zeitschritt korrigieren
+const bool restrictRadial = false;
 
 
 
 //mitteln über wie viele runs?
-const int runs = 5;
+const int runs = 1;
 
 //wie viele Jobs soll es geben?
 const int jobs = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
 //const double obs_dt = 0.05; //alter Wert
-const double obs_dt = 0.1; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit
+const double obs_dt = 50.0; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit
 
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 5; //eine Jeanszeit (Typ 1) ist etwa 35, dh etwa 25 Jeanszeiten gesamt
+const int obs_anzahl = 2000; //eine Jeanszeit (Typ 1) ist etwa 35, dh etwa 25 Jeanszeiten gesamt
 
 
 // Binbreite Paarkorrelationsfunktion
@@ -97,12 +106,13 @@ const int rhoring_bins = 500;
 const int ftrho_qbins = 30;
 
 
-// Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5
-const int startpos_methode=5;
+// Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5, Kern+Ring=6
+const int startpos_methode=6;
 //falls aus Datei: Name der Datei
 const string startpos_dateiname="startpos.txt";
-//falls Kreisscheibe: Radius der Kreisscheibe
-const double startpos_kreisradius = 91.6;
+//falls Kreisscheibe oder Kern+Ring: Radius des Kreisss
+//const double startpos_kreisradius = 91.6;
+const double startpos_kreisradius = 4.5 * lambda_kapillar; //vorhergesagtes Gleichgewicht ist bei 5.31379 lambda
 
 //falls Positionen in EINE Datei geschrieben werden: Name der Datei
 const string pos_output_dateiname="pos.txt";
@@ -115,6 +125,7 @@ const bool auswerten_rhovonk= false; //via Gitter im k-Raum
 const bool auswerten_rhoviaFFTW = false;
 const bool auswerten_rhoFT_normjerun=false; //nur falls auswerten_rhoviaFFTW gesetzt ist.
 const bool auswerten_animation = true; //schreibt im ersten Durchgang Schnappschüsse in Dateien pos1.txt und pos2.txt
+const bool auswerten_abstand = true; //Mittelwert des Abstands Typ2-Teilchen von der Boxmitte
 
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////

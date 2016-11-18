@@ -20,6 +20,7 @@ extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapill
 extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
 extern const double obs_dt;
+extern const bool noWCA, noRNG, quickInit, restrictRadial;
 
 /*
 extern int** r1_git;
@@ -83,7 +84,18 @@ double RunZustand::RunDynamik::zeitschritt(double tmax){
 	berechne_WCA22();
 	addiere_WCA12();
 	berechne_kapkraefte();
-	berechne_zufallskraefte();
+        if(!noWCA)
+            berechne_zufallskraefte();
+        else{
+            for(int i=0; i<N1; i++){
+                F1_noise[i][0] = 0.0;
+                F1_noise[i][1] = 0.0;
+            }//for i
+            for(int i=0; i<N2; i++){
+                F2_noise[i][0] = 0.0;
+                F2_noise[i][1] = 0.0;
+            }//for i
+        }//else ohne Zufallskräfte
 	
 	/* Test: Gebe Teilchenpositionen und aktuelle Kraefte aus. 
 	for(int teilchen=0; teilchen<N; teilchen++){
@@ -119,6 +131,26 @@ double RunZustand::RunDynamik::zeitschritt(double tmax){
 		
 		r2_rel[teilchen][0] += dx;
 		r2_rel[teilchen][1] += dy;
+                
+                if(restrictRadial){
+                    //messe abstand zur mitte
+                    const double mitte = 0.5*L;
+                    double x = r2_git[teilchen][0]*nachList_Breite + r2_rel[teilchen][0];
+                    double y = r2_git[teilchen][1]*nachList_Breite + r2_rel[teilchen][1];
+                    
+                    double dxmitte = mitte - x;
+                    double dymitte = mitte - y;
+                    double abst = sqrt(dxmitte*dxmitte + dymitte*dymitte);
+                    
+                    
+                    //aus Abstand und teilchenNr ergibt 
+                    double x_soll = mitte + abst * cos(2*M_PI*(int)teilchen/N2);
+                    double y_soll = mitte + abst * sin(2*M_PI*(int)teilchen/N2);
+                    
+                    r2_rel[teilchen][0] += (x_soll - x);
+                    r2_rel[teilchen][1] += (y_soll - y);
+                }//if restrictRadial
+                
 	}//for teilchen bis N2
 	
 	//erwListen aktualisieren: Falls ein Teilchen seine Zelle verlassen hat (dh r_rel<0 oder r_rel>nachList_Breite), streichen/hinzufügen
@@ -389,9 +421,18 @@ void RunZustand::RunDynamik::kapkraefte_init(){
 /// plane FFTs
 	#pragma omp critical
 	{
-	forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_PATIENT);
-	backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_PATIENT);
-	backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_PATIENT);
+            if(quickInit){
+                forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_ESTIMATE);
+                backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_ESTIMATE);
+                backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_ESTIMATE);
+            }//if quickInit
+            else{
+                forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_PATIENT);
+                backx_plan   = fftw_plan_dft_2d(Z, Z, Fxk,  Fx,   FFTW_BACKWARD, FFTW_PATIENT);
+                backy_plan   = fftw_plan_dft_2d(Z, Z, Fyk,  Fy,   FFTW_BACKWARD, FFTW_PATIENT);
+                
+            }//else nicht quickInit
+	
 	}
 	
 }//void kapkraefte_init
@@ -792,6 +833,10 @@ double RunZustand::RunDynamik::optimaler_zeitschritt(){
 	
 	//Erst Typ 1
 	for(int teilchen=0; teilchen<N1; teilchen++){
+                if(noWCA){
+                    if(F1_WCA[teilchen][0] != 0.0 || F1_WCA[teilchen][1] != 0.0)
+                        cout << "Warnung, Teilchen "<<teilchen<<" (Typ 1) hat WCA-Kraft." <<endl;
+                }//if noWCA, warnen wenn doch WCA-Kraft auftritt
 		//x-Richtung
 		double F = F1_WCA[teilchen][0] + F1kap[teilchen][0];
 		if(fabs(F) < 1.0e-5)
@@ -815,6 +860,10 @@ double RunZustand::RunDynamik::optimaler_zeitschritt(){
 	
 	//Dann Typ 2
 	for(int teilchen=0; teilchen<N2; teilchen++){
+                if(noWCA){
+                    if(F2_WCA[teilchen][0] != 0.0 || F2_WCA[teilchen][1] != 0.0)
+                        cout << "Warnung, Teilchen "<<teilchen<<" (Typ 2) hat WCA-Kraft." <<endl;
+                }//if noWCA, warnen wenn doch WCA-Kraft auftritt
 		//x-Richtung
 		double F = F2_WCA[teilchen][0] + F2kap[teilchen][0];
 		if(fabs(F) < 1.0e-5)
@@ -1065,3 +1114,42 @@ void RunZustand::init_gitterstart(){
 	}//for i,j
 	
 }//void init_gitterstart
+
+
+void RunZustand::init_kernundring(){
+    const double mitte = 0.5*L;
+    if(N1 != 1 || N2 < 3){
+        cout << "Fehler: Start ist Kern und Ring, aber die Teilchenanzahlen sind nicht (1,viele)!" << endl << flush;
+        return;
+    }//if
+    
+    double x, y;
+    int ic, jc;
+    
+    {// Typ 1, gross und in der Mitte
+        x = mitte;
+        y = mitte;
+        
+        ic = (int)(x/nachList_Breite);
+        jc = (int)(y/nachList_Breite);
+        r1_git[0][0] = ic;
+        r1_git[0][1] = jc;
+        r1_rel[0][0] = x - ic*nachList_Breite;
+        r1_rel[0][1] = y - jc*nachList_Breite;
+    }
+    
+    for(int teil=0; teil<N2; teil++){// Typ 2, Ring mit Radius startpos_kreisradius drumherum
+        x = mitte + startpos_kreisradius*cos(2*M_PI*(double)teil/N2);
+        y = mitte + startpos_kreisradius*sin(2*M_PI*(double)teil/N2);
+        
+        ic = (int)(x/nachList_Breite);
+        jc = (int)(y/nachList_Breite);
+        r2_git[teil][0] = ic;
+        r2_git[teil][1] = jc;
+        r2_rel[teil][0] = x - ic*nachList_Breite;
+        r2_rel[teil][1] = y - jc*nachList_Breite;
+
+    }//for teil
+    
+    
+}//void init_kreisundring

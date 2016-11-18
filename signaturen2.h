@@ -175,6 +175,7 @@ public:
 		void schreibe_rhoFFT(int run); 
 		void normalize(); //die Observablen, die mittels Binning gewonnen wurden (zB ftrho, rhoFFTW), werden je Bin durch (Anzahl Beiträge zum Bin) geteilt
 		void schreibe_pos(int t);
+                void schreibe_abstaende(int t);
 		
 		
 		void record_korrelationsfunktion11(int t);
@@ -245,6 +246,9 @@ public:
 		//Dateizeiger, in den Positionen der Teilchen je Obs-Point geschrieben werden
 		FILE* pos1;
 		FILE* pos2;
+                
+                //Dateizeiger, in den die gemittelten Abstände Typ2 von Boxmitte geschrieben werden
+                FILE* ab2;
 		
 
 		//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.
@@ -308,6 +312,9 @@ private:
 	
 	//setzt Teilchen auf ein quadratisches Gitter. Nur ein Teilchentyp, sonst Abbruch. Falls N keine Quadratzahl ist, bleiben die hintersten paar Gitterplätze frei.
 	void init_gitterstart();
+        
+        // initialisiert alle Teilchenpositionen. Typ 1 (nur ein Teilchen) in Mitte der Box, Typ 2 kreisförmig um Mitte
+        void init_kernundring();
 	
 
 	//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.

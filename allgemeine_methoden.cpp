@@ -289,6 +289,9 @@ void RunZustand::init(int nr){
 		case 5:
 			init_kreisscheibe();
 			break;
+                case 6:
+                        init_kernundring();
+                        break;
 		default:
 			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5" << endl;
 			return;
