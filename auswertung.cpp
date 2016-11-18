@@ -99,13 +99,13 @@ void RunZustand::RunObs::obs_init(int run){
 	
 	if(auswerten_animation){
 		string dateiname = "pos1_.txt";
-		dateiname.insert(5, int_to_string(run));
+		dateiname.insert(5, int_to_string(run+1));
 		pos1 = fopen(dateiname.c_str(), "w");
 		fprintf(pos1, "# Format: t TAB x TAB y \n\n");
 		
 		if(0 != N2){
 			dateiname = "pos2_.txt";
-			dateiname.insert(5, int_to_string(run));
+			dateiname.insert(5, int_to_string(run+1));
 			pos2 = fopen(dateiname.c_str(), "w");
 			fprintf(pos2, "# Format: t TAB x TAB y \n\n");
 		}

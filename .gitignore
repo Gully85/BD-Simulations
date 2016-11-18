@@ -12,3 +12,13 @@ dichteRinge/
 dichteRinge2/
 dichteRinge3/
 test-opmp/
+analyse_dichteRinge/
+homogen2/
+homogen3/
+integral_ring_kraefteGG/
+lambdaklein1/
+lambdaklein1_homogen/
+opmp-bfs1/
+*.pdf
+*.tgz
+*.gch
