@@ -79,6 +79,9 @@ const int runs = 1;
 //wie viele Jobs soll es geben?
 const int jobs = 1;
 
+//wie viele Threads sollen gestartet werden, dh wie viele CPUs verwendet? 0 für unbegrenzt
+const int maxThreads = 2;
+
 //Observable aufnehmen in welchem Zeitabstand?
 //const double obs_dt = 0.05; //alter Wert
 const double obs_dt = 50.0; //eine Jeanszeit (Typ 1) ist etwa 35, dh 10-20 Auswertungen je Jeanszeit

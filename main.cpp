@@ -40,6 +40,7 @@ extern const int obs_anzahl;
 extern const double obs_dt;
 
 extern const int runs;
+extern const int maxThreads;
 
 extern const bool auswerten_korrfunk;
 extern const bool auswerten_korrfunk_mixed;
@@ -111,8 +112,10 @@ int main(){
 		rho2FFTW_im[run] = new vector<double>[obs_anzahl];
 	}//for runs
 	}
-	
-//omp_set_num_threads(3);
+
+if(maxThreads != 0)
+    omp_set_num_threads(maxThreads);
+
 #pragma omp parallel for
 for(int run=0; run<runs; run++){
 	
