@@ -27,11 +27,13 @@ extern const int densGrid_Zellen;
 const int Z = densGrid_Zellen;
 extern const int densGrid_Schema;
 
-extern int** r1_git;
+/*
+ * extern int** r1_git;
 extern double** r1_rel;
 
 extern int** r2_git;
 extern double** r2_rel;
+// */
 
 extern const double nachList_Breite;
 extern const int N1;
@@ -155,6 +157,9 @@ void RunZustand::RunObs::record_korrelationsfunktion11(int t){
 	
 	//Nullen
 	g11[t].assign(korr_bins, 0.0); //Nullen an alle Stellen
+        //g11[t].reserve(korr_bins);
+        //for(int i=0; i<korr_bins; i++)
+            //g11[t].push_back(0.0);
 	
 	//konstanter Vorfaktor
 	const double rho1 = N1/L/L;

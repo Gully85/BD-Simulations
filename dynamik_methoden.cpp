@@ -419,7 +419,7 @@ void RunZustand::RunDynamik::kapkraefte_init(){
 	}//if sinxG==NULL
 	
 /// plane FFTs
-	#pragma omp critical
+	//#pragma omp critical
 	{
             if(quickInit){
                 forward_plan = fftw_plan_dft_2d(Z, Z, rhox, rhok, FFTW_FORWARD,  FFTW_ESTIMATE);

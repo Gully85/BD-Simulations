@@ -113,22 +113,25 @@ int main(){
 	}//for runs
 	}
 
-if(maxThreads != 0)
-    omp_set_num_threads(maxThreads);
+//if(maxThreads != 0)
+//    omp_set_num_threads(maxThreads);
 
 #pragma omp parallel for
 for(int run=0; run<runs; run++){
 	
-	RunZustand theRun;
+    RunZustand theRun;
+    #pragma omp critical
+    {
+	
 	
 	theRun.ausgabe_jeansgroessen();
 	//main_init();
 	theRun.init(run);
 	
 	
-	
 	cout << "Run nr " << run << ": initialisiert." << endl;
-	
+    }
+        
 	
 	/*
 	cout << "record obs-Punkt 1 von " << obs_anzahl << endl;
