@@ -22,6 +22,8 @@ int suche(int a, vector<int> v);
 
 //fftw_complex beispiel;
 
+
+
 //enthält alle Informationen/Variablen/Felder, um den Zustand eines Runs zu definieren
 class RunZustand{
 
@@ -63,7 +65,85 @@ public:
 		
 		//Ein Zeitschritt, Länge so dass max_reisedistanz eingehalten wird, höchstens tmax
 		double zeitschritt(double tmax);
-		
+                
+                //ausfuehrliche Infos über einen Zeitschritt. Containerklasse
+                class TimestepInfo{
+                    public:
+                    TimestepInfo(){
+                        num_WCA_berechnet=-1; 
+                        maxWCAx=0.0; maxWCAy=0.0;
+                        maxWCAtype=-1; maxWCAindex=-1;
+                        maxWCA_numWW1=-1; maxWCA_numWW2=-1;
+                        maxKapx=0.0; maxKapy=0.0;
+                        maxKaptype=-1; maxKapindex=-1;
+                        maxRNDx=0.0; maxRNDy=0.0;
+                        maxRNDtype=-1; maxRNDindex=-1;
+                        dt=-1.0;
+                        num_Zellwechsel1=-1; num_Zellwechsel2=-1;
+                    }
+                    virtual ~TimestepInfo()=default;
+                /// WCA: 
+                    //Ein Teil der paarweisen WW wird wegen Nachbarlisten übersprungen. Wie groß ist der Teil?
+                    int num_WCA_berechnet;
+                    //betragsgrößte WCA-Kraft
+                    double maxWCAx, maxWCAy;
+                    //Typ und Index des Teilchens mit der größten WCA-Kraft
+                    int maxWCAtype, maxWCAindex;
+                    //Anzahl der Einträge in den betreffenden Nachbarlisten. Für Typen einzeln.
+                    int maxWCA_numWW1, maxWCA_numWW2;
+
+                /// Kapillar:
+                    //betragsgrößte Kapillarkraft
+                    double maxKapx, maxKapy;
+                    //Typ und Index des Teilchens mit der größten Kapillarkaft
+                    int maxKaptype, maxKapindex;
+
+                /// Zufallskraft:
+                    // betragsgrößte Zufallskraft
+                    double maxRNDx, maxRNDy;
+                    // Typ und Index des Teilchens mit der größten Zufallskraft
+                    int maxRNDtype, maxRNDindex;
+
+                /// resultierende Zeit-Schrittweite
+                    double dt;
+                    
+                /// Anzahl Teilchen, die ihre Subzelle verlassen haben
+                    int num_Zellwechsel1, num_Zellwechsel2;
+
+                    //gebe alles auf stdout aus
+                    void ausgabe(){
+                        cout << "WCA-Wechselwirkung: " << num_WCA_berechnet << " WW wurden berechnet." << endl;
+                        cout << "stärkste WCA-WW: Wirkt auf Teilchen " << maxWCAindex << ", Typ " << maxWCAtype <<". Sie beträgt ("
+                                << maxWCAx << "," << maxWCAy << "). In den Nachbarlisten sind " << maxWCA_numWW1 << "+" 
+                                << maxWCA_numWW2 << " Einträge." << endl;
+                        cout << "Es haben " << num_Zellwechsel1 <<"+"<< num_Zellwechsel2 << " Teilchen ihre Zelle verlassen." << endl << endl;
+                        
+                        cout << "Kapillarwechselwirkung: stärkste Kraft wirkt auf Teilchen "<< maxKapindex <<", Typ " << maxKaptype<<". Sie beträgt ("
+                                << maxKapx << "," << maxKapy << ")." << endl << endl;
+                        
+                        cout << "Zufallskräfte: stärkste Kraft wirkt auf Teilchen "<< maxRNDindex<<", Typ " << maxRNDtype<<". Sie beträgt ("
+                                << maxRNDx << "," << maxRNDy << "). " << endl << endl;
+                        
+                        cout << "-> Schrittweite: dt=" << dt <<endl<<flush;
+                                
+                    }//void ausgabe
+                    
+                    void reset(){
+                        num_WCA_berechnet=0; 
+                        maxWCAx=0.0; maxWCAy=0.0;
+                        maxWCAtype=-1; maxWCAindex=-1;
+                        maxWCA_numWW1=-1; maxWCA_numWW2=-1;
+                        maxKapx=0.0; maxKapy=0.0;
+                        maxKaptype=-1; maxKapindex=-1;
+                        maxRNDx=0.0; maxRNDy=0.0;
+                        maxRNDtype=-1; maxRNDindex=-1;
+                        dt=-1.0;
+                        num_Zellwechsel1=0; num_Zellwechsel2=0;
+                    }//void reset
+
+                };//class TimestepInfo
+		//Ein Zeitschritt, der Informationen in info schreibt
+		double zeitschritt_debug(double tmax, TimestepInfo &info);
 		
 		
 		//Methoden während eines Runs	
@@ -75,6 +155,13 @@ public:
 		void berechne_WCA11();
 		void berechne_WCA22();
 		void addiere_WCA12();
+                
+                void berechne_kapkraefte_debug(TimestepInfo&);
+                void berechne_WCA11_debug(TimestepInfo&);
+                void berechne_WCA22_debug(TimestepInfo&); 
+                void addiere_WCA12_debug(TimestepInfo&);
+                void berechne_zufallskraefte_debug(TimestepInfo&);
+                void refresh_erwNachbar_debug(TimestepInfo&);
 		
 		void refresh_erwNachbar();
 		

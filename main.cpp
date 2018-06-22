@@ -116,7 +116,7 @@ int main(){
 //if(maxThreads != 0)
 //    omp_set_num_threads(maxThreads);
 
-#pragma omp parallel for
+//#pragma omp parallel for
 for(int run=0; run<runs; run++){
 	
     RunZustand theRun;
@@ -143,6 +143,24 @@ for(int run=0; run<runs; run++){
 	if (auswerten_animation && run==0) pos_schreiben(0.0, pos1, pos2);
 	*/
 	theRun.obs_point(0);
+        RunZustand::RunDynamik::TimestepInfo info;
+        theRun.dyn.zeitschritt_debug(1.0, info);
+        
+        for(int count=0; count<10; count++)
+            cout << theRun.dyn.zeitschritt(0.1) << endl;
+        
+        cout << "--- 1000 Zeitschritte still ---" << endl;
+        for(int count=0; count<1000; count++)
+            theRun.dyn.zeitschritt(0.1);
+        
+        for(int count=0; count<10; count++)
+            cout << theRun.dyn.zeitschritt(0.1) << endl;
+        
+        
+        theRun.dyn.zeitschritt_debug(1.0, info);
+        
+        return 0;
+        
 	cout << "Run nr " << run << ": Obs-Point 1 fertig." << endl;
 	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){

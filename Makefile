@@ -8,10 +8,10 @@ FILES = main.cpp auswertung.cpp dynamik_methoden.cpp gridRoutinen.cpp allgemeine
 FILES_AUSWERTUNG = main_auswertung.cpp parameter.h zufall.cpp signaturen_auswertung.h positionen_speichernladen.cpp observablen_auswertung.cpp
 
 BD :  $(FILES)
-	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_NORMAL)
+	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_NORMAL) -o BDkap
 
 debug : $(FILES)
-	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_DEBUG)
+	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_DEBUG) -o debug
 
 auswertung: $(FILES_AUSWERTUNG)
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_NORMAL)

@@ -160,6 +160,60 @@ double RunZustand::RunDynamik::zeitschritt(double tmax){
 }//double zeitschritt
 
 
+// Fuehre einen Zeitschritt durch: Berechnet Kräfte, ermittle optimale Dauer, bewege Teilchen, aktualisiere Nachbarlisten. 
+// Schreibe zusätzliche Informationen in TimestepInfo
+double RunZustand::RunDynamik::zeitschritt_debug(double tmax, TimestepInfo &info){
+    double deltat = tmax; //kann nur kleiner werden
+    
+    if (tmax <= 0.0){
+        cout << "Fehler: Negative Zeitschrittweite "<<tmax<<" gefordert, breche ab!" << endl << flush;
+        return 1.0e10;
+    }//if tmax negativ
+    
+    info.reset();
+    
+    //berechne alle Kräfte
+    berechne_WCA11_debug(info);
+    berechne_WCA22_debug(info);
+    addiere_WCA12_debug(info);
+    berechne_kapkraefte_debug(info);
+    
+    berechne_zufallskraefte_debug(info);
+    
+    deltat = optimaler_zeitschritt();
+    info.dt = deltat;
+    
+    //alle Teilchen Typ 1 bewegen
+    for(int teilchen=0; teilchen<N1; teilchen++){
+        double dx = deltat * (F1_WCA[teilchen][0] + F1kap[teilchen][0]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][0];
+        double dy = deltat * (F1_WCA[teilchen][1] + F1kap[teilchen][1]) + sqrt(2.0*T*deltat)*F1_noise[teilchen][1];
+        
+        r1_rel[teilchen][0] += dx;
+        r1_rel[teilchen][1] += dy;
+    }//for teilchen bis N1
+    
+    // alle Teilchen Typ 2 bewegen
+    for(int teilchen=0; teilchen<N2; teilchen++){
+        double dx = deltat * (F2_WCA[teilchen][0] + F2kap[teilchen][0]) + sqrt(2.0*T*deltat)*F2_noise[teilchen][0];
+        double dy = deltat * (F2_WCA[teilchen][1] + F2kap[teilchen][1]) + sqrt(2.0*T*deltat)*F2_noise[teilchen][1];
+        
+        r2_rel[teilchen][0] += dx;
+        r2_rel[teilchen][1] += dy;
+    }//for teilchen bis N1
+    
+    refresh_erwNachbar_debug(info);
+    
+    info.ausgabe();
+    
+    return deltat;
+    
+    
+    
+    
+}//double zeitschritt_debug
+
+
+
 //erneuere erwNachbarlisten. Beim Aufruf sind r_rel<0 oder r_rel>nachList_Breite zulässig, wird behoben
 void RunZustand::RunDynamik::refresh_erwNachbar(){
 	// using namespace dynamik_methoden;
@@ -271,6 +325,123 @@ void RunZustand::RunDynamik::refresh_erwNachbar(){
 	}//for teilchen bis N2
 	
 }//void refresh_erwNachbar
+
+void RunZustand::RunDynamik::refresh_erwNachbar_debug(TimestepInfo &info){
+    // using namespace dynamik_methoden;
+	//Typ 1 über Zellgrenze bewegt?
+	for(int teilchen=0; teilchen<N1; teilchen++){
+		if(r1_rel[teilchen][0] < 0.0 || r1_rel[teilchen][0] > nachList_Breite
+		|| r1_rel[teilchen][1] < 0.0 || r1_rel[teilchen][1] > nachList_Breite){
+                    
+                    info.num_Zellwechsel1++;
+                    
+			//Indices der alten Zelle
+			int ic = r1_git[teilchen][0];
+			int jc = r1_git[teilchen][1];
+			
+			//Zellen, in denen das Teilchen bisher eingetragen war
+			int x[3]; int y[3];
+			x[0] = (ic-1 + nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1 + nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			//aus allen entfernen
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwListe_rem(erwNachbarn1[x[i]][y[j]], teilchen);
+			
+			//Indices der neuen Zelle. Koennen noch negative oder zu grosse Werte haben. floor() rundet auch negative Zahlen korrekt ab.
+			ic = (int) floor((r1_git[teilchen][0]*nachList_Breite + r1_rel[teilchen][0])/nachList_Breite);
+			jc = (int) floor((r1_git[teilchen][1]*nachList_Breite + r1_rel[teilchen][1])/nachList_Breite);
+			
+			// korrigiere negative bzw zu grosse Zellindices, durch period. Randbed.
+			ic = (ic+nachList_Zellen)%nachList_Zellen;
+			jc = (jc+nachList_Zellen)%nachList_Zellen;
+			
+			//trage neue Position in Gitter- und Relativvektor ein
+			r1_rel[teilchen][0] = fmod(r1_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r1_rel[teilchen][1] = fmod(r1_rel[teilchen][1] + nachList_Breite, nachList_Breite);
+			r1_git[teilchen][0] = ic;
+			r1_git[teilchen][1] = jc;
+			
+			//fuege Teilchen den neuen Nachbarlisten hinzu
+			//Zellen, in die das Teilchen eingetragen werden soll. ic,jc sind schon aktuell
+			x[0] = (ic-1+nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1+nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwNachbarn1[x[i]][y[j]].push_back(teilchen);
+			
+			
+		}//if Typ1 aus Zelle bewegt
+	}//for teilchen bis N1
+	
+	
+	//Typ 2 über Zellgrenze bewegt?
+	for(int teilchen=0; teilchen<N2; teilchen++){
+		if(r2_rel[teilchen][0] < 0.0 || r2_rel[teilchen][0] > nachList_Breite
+		|| r2_rel[teilchen][1] < 0.0 || r2_rel[teilchen][1] > nachList_Breite){
+                    
+                    info.num_Zellwechsel2++;
+                    
+			//Indices der alten Zelle
+			int ic = r2_git[teilchen][0];
+			int jc = r2_git[teilchen][1];
+			
+			//Zellen, in denen das Teilchen bisher eingetragen war
+			int x[3]; int y[3];
+			x[0] = (ic-1 + nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1 + nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			//aus allen entfernen
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwListe_rem(erwNachbarn2[x[i]][y[j]], teilchen);
+			
+			//Indices der neuen Zelle. Koennen noch negative oder zu grosse Werte haben. floor() rundet auch negative Zahlen korrekt ab.
+			ic = (int) floor((r2_git[teilchen][0]*nachList_Breite + r2_rel[teilchen][0])/nachList_Breite);
+			jc = (int) floor((r2_git[teilchen][1]*nachList_Breite + r2_rel[teilchen][1])/nachList_Breite);
+			
+			// korrigiere negative bzw zu grosse Zellindices, durch period. Randbed.
+			ic = (ic+nachList_Zellen)%nachList_Zellen;
+			jc = (jc+nachList_Zellen)%nachList_Zellen;
+			
+			//trage neue Position in Gitter- und Relativvektor ein
+			r2_rel[teilchen][0] = fmod(r2_rel[teilchen][0] + nachList_Breite, nachList_Breite); //fmod=modulo
+			r2_rel[teilchen][1] = fmod(r2_rel[teilchen][1] + nachList_Breite, nachList_Breite);
+			r2_git[teilchen][0] = ic;
+			r2_git[teilchen][1] = jc;
+			
+			//fuege Teilchen den neuen Nachbarlisten hinzu
+			//Zellen, in die das Teilchen eingetragen werden soll. ic,jc sind schon aktuell
+			x[0] = (ic-1+nachList_Zellen)%nachList_Zellen;
+			x[1] = ic;
+			x[2] = (ic+1)%nachList_Zellen;
+			y[0] = (jc-1+nachList_Zellen)%nachList_Zellen;
+			y[1] = jc;
+			y[2] = (jc+1)%nachList_Zellen;
+			
+			for(int i=0; i<3; i++)
+			for(int j=0; j<3; j++)
+				erwNachbarn2[x[i]][y[j]].push_back(teilchen);
+			
+			
+		}//if aus Zelle bewegt
+	}//for teilchen bis N2
+	
+}//void refresh_erwNachbar_debug
 
 void RunZustand::zeitschritte_bis_obs(){
 	while(t < obs_dt){
@@ -511,6 +682,76 @@ void RunZustand::RunDynamik::berechne_WCA11(){
 	}//for i
 }//void berechne_WCA11
 
+void RunZustand::RunDynamik::berechne_WCA11_debug(TimestepInfo &info){
+    int i; //Aufteilchen
+    vector<int>::iterator j; //wechselwirkendes Teilchen
+    double a2; //Abstandsquadrat
+    
+    if(F1_WCA == NULL){
+        cout << "Fehler: WCA-Kraftberechnung aufgerufen, aber nicht initialisiert!" << endl;
+        return;
+    }//if nicht initialisiert
+    
+    //Kräfte auf Null setzen
+    for(i=0; i<N1; i++){
+        F1_WCA[i][0]=0.0;
+        F1_WCA[i][1]=0.0;
+    }//for
+    
+    //Schleife über Teilchen
+    for(i=0; i<N1; i++){
+        int ic = r1_git[i][0];
+        int jc = r1_git[i][0];
+        
+        //Schleife über wechselwirkende Teilchen
+        for(j=erwNachbarn1[ic][jc].begin(); j != erwNachbarn1[ic][jc].end(); j++){
+            if(i == *j) continue; //überspringe WW mit sich selbst
+            
+            info.num_WCA_berechnet++;
+            a2 = abstand2_11(i, *j); //Abstandsquadrat, berücksichtigt periodische Randbedingungen
+            
+            //falls zu weit entfernt, WW ueberspringen
+            if(a2 > zweihoch1_6*zweihoch1_6) continue;
+            
+            //Absolutkoordinaten
+            double x1 = r1_git[ i][0]*nachList_Breite + r1_rel[ i][0];
+            double y1 = r1_git[ i][1]*nachList_Breite + r1_rel[ i][1];
+            double x2 = r1_git[*j][0]*nachList_Breite + r1_rel[*j][0];
+            double y2 = r1_git[*j][1]*nachList_Breite + r1_rel[*j][1];
+            
+            double dx = x1-x2;
+            double dy = y1-y2;
+            
+            //periodische Randbedingungen. Falls dx^2 + dy^2 == a2 ist, ist dies nicht noetig.
+            if(dx*dx + dy*dy > a2){
+                //x-Richtung nahe am Rand?
+                if((dx-L)*(dx-L) < dx*dx)
+                        x2 += L;
+                else if((dx+L)*(dx+L) < dx*dx)
+                        x2 -= L;
+                dx = x1-x2;
+                
+                //y-Richtung nahe am Rand?
+                if((dy-L)*(dy-L) < dy*dy)
+                        y2 += L;
+                else if((dy+L)*(dy+L) < dy*dy)
+                        y2 -= L;
+                dy = y1-y2;
+                    
+            }//if periodische Randbedingungen
+            
+            // a^(-8) und a^(-14)
+            double a_8 = 1.0/(a2*a2*a2*a2);
+            double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+            
+            //addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
+            F1_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
+            F1_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
+        }//for j
+    }//for i
+}//void berechne_WCA11_debug
+
+
 //berechne WCA-Kräfte aus 22-Wechselwirkung, schreibe sie in F2_WCA[N2][2]
 void RunZustand::RunDynamik::berechne_WCA22(){
 	
@@ -589,6 +830,83 @@ void RunZustand::RunDynamik::berechne_WCA22(){
 	
 }//void berechne_WCA22
 
+void RunZustand::RunDynamik::berechne_WCA22_debug(TimestepInfo &info){
+    //using namespace dynamik_methoden;
+    int i; //Teilchen
+    vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
+    double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
+
+    if(F2_WCA == NULL){
+            cout << "Fehler: WCA-Kraefteberechnung aufgerufen, aber nicht initialisiert!" << endl;
+            return;
+    }//if nicht initialisiert
+
+    //setze F_WCA auf Null
+    for(i=0; i<N2; i++){
+            F2_WCA[i][0]=0.0;
+            F2_WCA[i][1]=0.0;
+    }//for
+    
+    //Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
+    for(i=0; i<N2; i++){
+            int ic = r2_git[i][0];
+            int jc = r2_git[i][1];
+            
+            for(j = erwNachbarn2[ic][jc].begin(); j!=erwNachbarn2[ic][jc].end(); j++){
+                    if(i == *j) continue; //ueberspringe WW mit sich selbst
+                    
+                    info.num_WCA_berechnet++;
+                    //Abstand berechnen, mit periodischen Randbedingungen
+                    a2 = abstand2_22(i, *j);
+                    
+                    //falls zu weit entfernt, WW ueberspringen
+                    if(a2 * sigma11_22*sigma11_22 > zweihoch1_6*zweihoch1_6 ) continue;
+                    
+                    //Absolutkoordinaten
+                    double x1 = r2_git[ i][0]*nachList_Breite + r2_rel[ i][0];
+                    double y1 = r2_git[ i][1]*nachList_Breite + r2_rel[ i][1];
+                    double x2 = r2_git[*j][0]*nachList_Breite + r2_rel[*j][0];
+                    double y2 = r2_git[*j][1]*nachList_Breite + r2_rel[*j][1];
+                    
+                    double dx = x1-x2;
+                    double dy = y1-y2;
+                    
+                    //periodische Randbedingungen. Falls dx^2 + dy^2 == a2 ist, ist dies nicht noetig.
+                    if(dx*dx + dy*dy > a2){
+                            //x-Richtung nahe am Rand?
+                            if((dx-L)*(dx-L) < dx*dx)
+                                    x2 += L;
+                            else if((dx+L)*(dx+L) < dx*dx)
+                                    x2 -= L;
+                            dx = x1-x2;
+                            
+                            //y-Richtung nahe am Rand?
+                            if((dy-L)*(dy-L) < dy*dy)
+                                    y2 += L;
+                            else if((dy+L)*(dy+L) < dy*dy)
+                                    y2 -= L;
+                            dy = y1-y2;
+                            
+                    }//if periodische Randbedingungen
+                    
+                    a2 *= sigma11_22*sigma11_22;
+                    dx *= sigma11_22;
+                    dy *= sigma11_22;
+                    
+                    
+                    // a^(-8) und a^(-14)
+                    double a_8 = 1.0/(a2*a2*a2*a2);
+                    double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+                    
+                    //addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
+                    F2_WCA[i][0] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dx;
+                    F2_WCA[i][1] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dy;
+                    
+            }//for j
+    }//for i
+    
+}//void berechne_WCA22_debug
+
 //berechne WCA-Kräfte aus 12-Wechselwirkung, addiere sie in F1_WCA[N1][2] und F2_WCA[N2][2] 
 void RunZustand::RunDynamik::addiere_WCA12(){
 	//using namespace dynamik_methoden;
@@ -654,6 +972,99 @@ void RunZustand::RunDynamik::addiere_WCA12(){
 	
 }//void addiere_WCA12
 
+void RunZustand::RunDynamik::addiere_WCA12_debug(TimestepInfo &info){
+    int i,j2; // i läuft über Typ 1, j läuft über Typ 2
+    vector<int>::iterator j; //läuft über die Typ2-Nachbarliste
+    double a2; //abstandsquadrat
+    int ic, jc; //Indices der Zelle, wo das Typ1-Teilchen drin ist
+    
+    for(i=0; i<N1; i++){
+            ic = r1_git[i][0];
+            jc = r1_git[i][1];
+            
+            for(j=erwNachbarn2[ic][jc].begin(); j!=erwNachbarn2[ic][jc].end(); j++){
+                    j2 = *j;
+                    a2 = abstand2_12(i,j2);
+                    info.num_WCA_berechnet++;
+                    
+                    //Falls Abstand zu groß, überspringen
+                    if(a2 * sigma11_12*sigma11_12> zweihoch1_6*zweihoch1_6) continue;
+                    
+                    //Absolutkoordinaten
+                    double x1 = r1_git[i ][0]*nachList_Breite + r1_rel[i ][0];
+                    double y1 = r1_git[i ][1]*nachList_Breite + r1_rel[i ][1];
+                    double x2 = r2_git[j2][0]*nachList_Breite + r2_rel[j2][0];
+                    double y2 = r2_git[j2][1]*nachList_Breite + r2_rel[j2][1];
+                    
+                    double dx = x1-x2;
+                    double dy = y1-y2;
+                    
+                    //Periodische Randbedingungen: Falls nahe am Rand, x2 y2 verschieben
+                    if(dx*dx+dy*dy > a2){
+                            //x-Richtung nahe am Rand?
+                            //dx = x1 - x2. dx-L ist also x1-(x2+L), und wenn dx-L kürzer ist als dx, setze x2 auf x2+L.
+                            if((dx-L)*(dx-L) < dx*dx)
+                                    x2 += L;
+                            else if((dx+L)*(dx+L) < dx*dx)
+                                    x2 -= L;
+                            
+                            //y-Richtung nahe am Rand?
+                            if((dy-L)*(dy-L) < dy*dy)
+                                    y2 += L;
+                            else if((dy+L)*(dy+L) < dy*dy)
+                                    y2 -= L;
+                            
+                    }//if nahe am Rand
+                    
+                    //skalieren mit sigma11_12
+                    a2 *= sigma11_12*sigma11_12;
+                    dx *= sigma11_12;
+                    dy *= sigma11_12;
+                    
+                    // a hoch -8 und hoch -14
+                    double a_8 = 1.0/(a2*a2*a2*a2);
+                    double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+                    
+                    
+                    F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
+                    F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+                    F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
+                    F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+            }//for j durch die Nachbarliste
+    }//for i, Typ 1
+    
+    //// Debug-spezifisch: Suche größte Kraft, für info.maxWCAx etc
+    // Typ 1
+    int maxTyp=1;
+    int maxIndex=-1;
+    double maxAbs2 = 0.0;
+    for(i=0; i<N1; i++){
+        double x = F1_WCA[i][0];
+        double y = F1_WCA[i][1];
+        if(x*x + y*y > maxAbs2){
+            maxIndex=i; maxAbs2=x*x+y*y;
+        }
+    }//for i bis N1
+    for(i=0; i<N2; i++){
+        double x = F2_WCA[i][0];
+        double y = F2_WCA[i][0];
+        if(x*x + y*y > maxAbs2){
+            maxTyp=2; maxIndex=i; maxAbs2=x*x+y*y;
+        }
+    }//for i bis N2
+    info.maxWCAtype=maxTyp;
+    info.maxWCAindex=maxIndex;
+    if(maxTyp == 1){ info.maxWCAx = F1_WCA[maxIndex][0]; info.maxWCAy = F1_WCA[maxIndex][1]; }
+    else           { info.maxWCAx = F2_WCA[maxIndex][0]; info.maxWCAy = F2_WCA[maxIndex][1]; }
+    
+    int imax, jmax;
+    if(maxTyp == 1){ imax = r1_git[maxIndex][0]; jmax = r1_git[maxIndex][1]; }
+    else           { imax = r2_git[maxIndex][0]; jmax = r2_git[maxIndex][1]; }
+    info.maxWCA_numWW1 = erwNachbarn1[imax][jmax].size();
+    info.maxWCA_numWW2 = erwNachbarn2[imax][jmax].size();
+    
+}//void addiere_WCA12_debug
+
 
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. 
 void RunZustand::RunDynamik::berechne_kapkraefte(){
@@ -681,7 +1092,7 @@ void RunZustand::RunDynamik::berechne_kapkraefte(){
 
 		Fyk[j][0] = - sinyG[j] * rhok[j][1]; 
 		Fyk[j][1] =   sinyG[j] * rhok[j][0];
-	}//for i
+	}//for j
 
 
 
@@ -699,6 +1110,75 @@ void RunZustand::RunDynamik::berechne_kapkraefte(){
 	}//switch
 
 }//void berechne_kapkraefte
+
+//berechne Kapillarkraefte (via FFT), schreibe sie in Fkap. Informationen in die Felder von info
+void RunZustand::RunDynamik::berechne_kapkraefte_debug(TimestepInfo &info){
+    int j,l;
+    double x,y;
+    
+/// Density-Gridding
+    switch(densGrid_Schema){
+        case 0: gridDensity_NGP(); break;
+        case 1: gridDensity_CIC(); break;
+        case 2: gridDensity_TSC(); break;
+	default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
+    }//switch
+    
+/// FFT: Transformierte Dichte in rhok[][]
+    fftw_execute(forward_plan);
+    
+/// Multiplikation mit i sin()/dx G: Schreibe Ergebnis in Fxk[][] und Fyk[][]. Komplexe Multiplikation. Bedenke, dass G*sin() rein imaginär ist.
+    for(j=0; j<Z*Z; j++){
+        Fxk[j][0] = -sinxG[j] * rhok[j][1]; // -im*im
+        Fxk[j][1] =  sinxG[j] * rhok[j][0]; // im*re
+        
+        Fyk[j][0] = -sinyG[j] * rhok[j][1];
+        Fyk[j][1] =  sinyG[j] * rhok[j][0];
+    }//for j
+    
+/// FFT-1: Schreibe rücktransformierte Kräfte in Fx[][0] und Fy[][0]
+    fftw_execute(backx_plan);
+    fftw_execute(backy_plan);
+    
+/// inverse Density_Gridding: Kräfte in Fkap
+    switch(densGrid_Schema){
+		case 0: inv_gridDensity_NGP(); break; 
+		case 1: inv_gridDensity_CIC(); break;
+		case 2: inv_gridDensity_TSC(); break;
+		default: cout << "Density-Gridding-Schema (NearestGridPoint/CloudInCell/TSC) nicht erkannt! densGrid_Schema="<<densGrid_Schema<<", zulaessig sind nur 0,1,2." << endl; 
+    }//switch
+    
+/// suche betrags-größte Kraft, für info
+    double maxBetrag2 = 0.0;
+    int maxBetragIndex=-1;
+    int maxBetragTyp=1;
+    for(l=0; l<N1; l++){
+        double betrag2 = F1kap[l][0]*F1kap[l][0] + F1kap[l][1]*F1kap[l][1];
+        if (betrag2 > maxBetrag2){maxBetragIndex=l; maxBetrag2=betrag2;}
+    }//for l bis N1
+    
+    for(l=0; l<N2; l++){
+        double betrag2 = F2kap[l][0]*F2kap[l][0] + F2kap[l][1]*F2kap[l][1];
+        if (betrag2 > maxBetrag2){maxBetragTyp=2; maxBetragIndex=l; maxBetrag2=betrag2;}
+    }//for l bis N2
+    
+    info.maxKapindex=maxBetragIndex;
+
+    if(maxBetragTyp == 1){
+        info.maxKaptype = 1;
+        info.maxKapx = F1kap[maxBetragIndex][0];
+        info.maxKapy = F1kap[maxBetragIndex][1];
+    }//if Typ 1
+    else {
+        info.maxKaptype = 2;
+        info.maxKapx = F2kap[maxBetragIndex][0];
+        info.maxKapy = F2kap[maxBetragIndex][1];
+    }//else Typ 2
+    
+    
+}//void berechne_kapkraefte_debug
+
+
 
 //Schreibt Zufallszahlen mit Varianz 1.0 in F1_noise[N1][2] und F2_noise[N2][2]. Nicht gaussverteilt, sondern gleichverteilt.
 void RunZustand::RunDynamik::berechne_zufallskraefte(){
@@ -724,6 +1204,47 @@ void RunZustand::RunDynamik::berechne_zufallskraefte(){
 		F2_noise[i][1] = y;
 	}//for i bis N2
 }//void berechne_zufallskraefte
+
+void RunZustand::RunDynamik::berechne_zufallskraefte_debug(TimestepInfo &info){
+    
+    const double wurzelfuenf = sqrt(5.0);
+    double x,y;
+    int maxIndex = -1;
+    double maxKraft2 = 0.0;
+    int maxTyp = 1;
+    
+    for(int i=0; i<N1; i++){
+        do{
+            x = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0, 1.0);
+            y = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0, 1.0);
+        } while(x*x + y*y > 5.0);
+        F1_noise[i][0] = x;
+        F1_noise[i][1] = y;
+        if(x*x + y*y > maxKraft2){maxIndex = i; maxKraft2 = x*x+y*y;}
+        
+    }//for i bis N1
+    for(int i=0; i<N2; i++){
+        do{
+            x = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0, 1.0);
+            y = wurzelfuenf*zufall_gleichverteilt_vonbis(-1.0, 1.0);
+        } while(x*x + y*y > 5.0);
+        F2_noise[i][0] = x;
+        F2_noise[i][1] = y;
+        if(x*x + y*y > maxKraft2){maxTyp=2; maxIndex=i; maxKraft2 = x*x + y*y;}
+    }//for i bis N2
+    
+    info.maxRNDtype = maxTyp;
+    info.maxRNDindex= maxIndex;
+    if (maxTyp == 1){
+        info.maxRNDx = F1_noise[maxIndex][0];
+        info.maxRNDy = F1_noise[maxIndex][1];
+    } // if
+    else{
+        info.maxRNDx = F2_noise[maxIndex][0];
+        info.maxRNDy = F2_noise[maxIndex][1];
+    }//else
+    
+}//void berechne_zufallskraefte_debug
 
 
 //Greensfunktion an der Stelle qjk. Index-Wrapping, Verschiebung.

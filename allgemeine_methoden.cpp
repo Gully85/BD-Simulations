@@ -322,7 +322,7 @@ void RunZustand::ausgabe_jeansgroessen(){
 	// tJ = 1/rho 1/(f^2/eps gamma)
 	
 	//Dichte
-	const double rho = N1/(L*L);
+	const double rho = (N1+N2)/(L*L);
 	//Jeans-Zeit
 	const double tJ = 1.0/(rho * kapillar_vorfaktor);
 	
@@ -331,13 +331,15 @@ void RunZustand::ausgabe_jeansgroessen(){
 	
 	
 	//der Ausdruck 1/wurzel(2rho_c^2/(rho-rho_c)^2 - 1), kommt in der Jeanslänge vor
-	const double lJ_faktor = 1.0/sqrt(2.0*rho_c/((rho-rho_c)*(rho-rho_c)) -1.0);
+	//const double lJ_faktor = 1.0/sqrt(2.0*rho_c/((rho-rho_c)*(rho-rho_c)) -1.0);
 	
-	const double kJ = lJ_faktor*sqrt(rho*kapillar_vorfaktor/T);
+	//const double kJ = lJ_faktor*sqrt(rho*kapillar_vorfaktor/T);
+        //const double kJ = sqrt(kapillar_vorfaktor * rho / T); //Grenzfall kleiner rho
+        const double kJ = sqrt(kapillar_vorfaktor/T * rho/(1 - 3*rho*rho/rho_c/rho_c - 8*rho*rho*rho/(rho_c*rho_c*rho_c)));
 
 	cout << "Jeans-Zeit: \t\t" << tJ << endl;
 	cout << "Jeans-Wellenzahl:\t" << kJ << endl;
-	cout << "Faktor in kJ: \t\t" << lJ_faktor << endl << endl;
+	//cout << "Faktor in kJ: \t\t" << lJ_faktor << endl << endl;
 	
 	
 }//void ausgabe_jeansgroessen
