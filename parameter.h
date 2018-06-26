@@ -70,7 +70,8 @@ const bool noRNG = false;
 const bool quickInit = false;
 //Bewegung der Teilchen einschränken: Nur radial, Winkel zur x-Achse nach jedem Zeitschritt korrigieren
 const bool restrictRadial = false;
-
+//macht nur wenige Zeitschritte, schreibt zusätzliche Infos, vor allem über Kraftberechnung
+const bool debugmode = true;
 
 
 //mitteln über wie viele runs?

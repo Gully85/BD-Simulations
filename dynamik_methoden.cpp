@@ -16,7 +16,8 @@ using std::cout; using std::endl; using std::flush;
 using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_max, max_reisedistanz, T;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_maxT;
+extern const double max_reisedistanz;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
 extern const double obs_dt;
@@ -162,13 +163,8 @@ double RunZustand::RunDynamik::zeitschritt(double tmax){
 
 // Fuehre einen Zeitschritt durch: Berechnet Kräfte, ermittle optimale Dauer, bewege Teilchen, aktualisiere Nachbarlisten. 
 // Schreibe zusätzliche Informationen in TimestepInfo
-double RunZustand::RunDynamik::zeitschritt_debug(double tmax, TimestepInfo &info){
-    double deltat = tmax; //kann nur kleiner werden
-    
-    if (tmax <= 0.0){
-        cout << "Fehler: Negative Zeitschrittweite "<<tmax<<" gefordert, breche ab!" << endl << flush;
-        return 1.0e10;
-    }//if tmax negativ
+double RunZustand::RunDynamik::zeitschritt_debug(double mrd, TimestepInfo &info, bool silent){
+    double deltat = 0.1; //kann nur kleiner werden
     
     info.reset();
     
@@ -180,7 +176,7 @@ double RunZustand::RunDynamik::zeitschritt_debug(double tmax, TimestepInfo &info
     
     berechne_zufallskraefte_debug(info);
     
-    deltat = optimaler_zeitschritt();
+    deltat = optimaler_zeitschritt(mrd);
     info.dt = deltat;
     
     //alle Teilchen Typ 1 bewegen
@@ -202,8 +198,8 @@ double RunZustand::RunDynamik::zeitschritt_debug(double tmax, TimestepInfo &info
     }//for teilchen bis N1
     
     refresh_erwNachbar_debug(info);
-    
-    info.ausgabe();
+    if (!silent)
+        info.ausgabe();
     
     return deltat;
     
@@ -1411,7 +1407,78 @@ double RunZustand::RunDynamik::optimaler_zeitschritt(){
 
 
 
-
+double RunZustand::RunDynamik::optimaler_zeitschritt(double mrd){
+    
+        double ret = dt_max; //späterer Return-Wert, kann nur kleiner werden
+	
+	////Loesen quadratischer Gleichungen:
+	// Aus m < |Fdt + sqrt(2T dt)dn| erhaelt man
+	// Falls F==0: dt < m^2/(2T (dn^2))
+	// Falls F!=0: dt < (w-|u|)^2 mit u=dn*sqrt(2T)/(8F) und w=sqrt(u^2 + m/(4|F|))
+	
+	// hier:
+	// m = mrd
+	// F = F_WCA+Fkap
+	// dn = F_noise
+	// T=T und dt = ret
+	
+	//Erst Typ 1
+	for(int teilchen=0; teilchen<N1; teilchen++){
+                if(noWCA){
+                    if(F1_WCA[teilchen][0] != 0.0 || F1_WCA[teilchen][1] != 0.0)
+                        cout << "Warnung, Teilchen "<<teilchen<<" (Typ 1) hat WCA-Kraft." <<endl;
+                }//if noWCA, warnen wenn doch WCA-Kraft auftritt
+		//x-Richtung
+		double F = F1_WCA[teilchen][0] + F1kap[teilchen][0];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F1_noise[teilchen][0]*F1_noise[teilchen][0]));
+		else{
+			double u = F1_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+		
+		//y-Richtung
+		F = F1_WCA[teilchen][1] + F1kap[teilchen][1];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F1_noise[teilchen][1]*F1_noise[teilchen][1]));
+		else{
+			double u = F1_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+	}//for teilchen
+	
+	//Dann Typ 2
+	for(int teilchen=0; teilchen<N2; teilchen++){
+                if(noWCA){
+                    if(F2_WCA[teilchen][0] != 0.0 || F2_WCA[teilchen][1] != 0.0)
+                        cout << "Warnung, Teilchen "<<teilchen<<" (Typ 2) hat WCA-Kraft." <<endl;
+                }//if noWCA, warnen wenn doch WCA-Kraft auftritt
+		//x-Richtung
+		double F = F2_WCA[teilchen][0] + F2kap[teilchen][0];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F2_noise[teilchen][0]*F2_noise[teilchen][0]));
+		else{
+			double u = F2_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+		
+		//y-Richtung
+		F = F2_WCA[teilchen][1] + F2kap[teilchen][1];
+		if(fabs(F) < 1.0e-5)
+			ret = min(ret, mrd*mrd/(2.0*T*F2_noise[teilchen][1]*F2_noise[teilchen][1]));
+		else{
+			double u = F2_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else
+	}//for teilchen
+	
+	return ret;
+    
+}//double optimaler_zeitschritt
 
 
 

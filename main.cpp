@@ -48,6 +48,9 @@ extern const bool auswerten_rhovonk;
 extern const bool auswerten_rhoviaFFTW;
 extern const bool auswerten_rhoFT_normjerun;
 extern const bool auswerten_animation;
+extern const bool debugmode;
+
+extern const double max_reisedistanz;
 
 /// Globale Felder. Mit Null initialisiert.
 /*
@@ -142,24 +145,70 @@ for(int run=0; run<runs; run++){
 	if (auswerten_rhoviaFFTW) record_rhoFFTW(run, 0);
 	if (auswerten_animation && run==0) pos_schreiben(0.0, pos1, pos2);
 	*/
-	theRun.obs_point(0);
-        RunZustand::RunDynamik::TimestepInfo info;
-        theRun.dyn.zeitschritt_debug(1.0, info);
         
-        for(int count=0; count<10; count++)
-            cout << theRun.dyn.zeitschritt(0.1) << endl;
-        
-        cout << "--- 1000 Zeitschritte still ---" << endl;
-        for(int count=0; count<1000; count++)
-            theRun.dyn.zeitschritt(0.1);
-        
-        for(int count=0; count<10; count++)
-            cout << theRun.dyn.zeitschritt(0.1) << endl;
-        
-        
-        theRun.dyn.zeitschritt_debug(1.0, info);
-        
-        return 0;
+        if(debugmode){
+            theRun.obs_point(0);
+            RunZustand::RunDynamik::TimestepInfo info;
+            
+            FILE* debugfile1 = fopen("mrd_data1.txt", "w");
+            FILE* debugfile2 = fopen("mrd_data2.txt", "w");
+            fprintf(debugfile1, "# Mittelwerte über 50 Zeitschritte. Früh = erste 50 Zeitschritte. \n");
+            fprintf(debugfile2, "# Mittelwerte über 50 Zeitschritte. Spät = nach 1000 Zeitschritten \n");
+            
+            fprintf(debugfile1, "# Format: mrd TAB <F_WCA_max> TAB |F_WCA_highest| TAB dt \n\n");
+            fprintf(debugfile2, "# Format: mrd TAB <F_WCA_max> TAB |F_WCA_highest| TAB dt \n\n");
+            
+            double mrd = 1.0;
+            for(; mrd > 0.00000001; mrd *= 0.95){
+                
+                cout << "mrd=" << mrd << endl;
+                
+                double F_mittel = 0.0;
+                double F_highest = 0.0;
+                double dt_mittel = 0.0;
+                theRun.init(0);
+                
+                // 50 Zeitschritte früh
+                for(int count=0; count<50; count++){
+                    theRun.dyn.zeitschritt_debug(mrd, info, true);
+                    dt_mittel += info.dt/50.0;
+                    double F = info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy;
+                    F_mittel += F/50.0;
+                    if (F > F_highest){
+                        F_highest = F;
+                    }
+                }//for 50
+                
+                fprintf(debugfile1, "%g \t %g \t %g \t %g \n", mrd, F_mittel, F_highest, dt_mittel);
+                
+                // einige Zeitschritte überspringen
+                int num_skip = (int) 1.5/mrd;
+                if (num_skip < 50) num_skip=50;
+                
+                for(int count=0; count<num_skip; count++)
+                    theRun.dyn.zeitschritt(0.1);
+                
+                //50 Zeitschritte spät
+                F_mittel=0.0;
+                F_highest=0.0;
+                dt_mittel=0.0;
+                for(int count=0; count<50; count++){
+                    theRun.dyn.zeitschritt_debug(mrd, info, true);
+                    dt_mittel += info.dt/50.0;
+                    double F = info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy;
+                    F_mittel += F/50.0;
+                    if (F > F_highest){
+                        F_highest = F;
+                    }
+                }//for 50
+                fprintf(debugfile2, "%g \t %g \t %g \t %g \n", mrd, F_mittel, F_highest, dt_mittel);
+                
+            }//for mrd
+            fclose(debugfile1);
+            fclose(debugfile2);
+            return 0;
+            
+        }
         
 	cout << "Run nr " << run << ": Obs-Point 1 fertig." << endl;
 	

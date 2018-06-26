@@ -143,7 +143,7 @@ public:
 
                 };//class TimestepInfo
 		//Ein Zeitschritt, der Informationen in info schreibt
-		double zeitschritt_debug(double tmax, TimestepInfo &info);
+		double zeitschritt_debug(double mrd, TimestepInfo &info, bool silent=false);
 		
 		
 		//Methoden während eines Runs	
@@ -167,6 +167,7 @@ public:
 		
 		void berechne_zufallskraefte();
 		double optimaler_zeitschritt();
+                double optimaler_zeitschritt(double mrd);
 		
 		
 		//Zeiger auf die Positionen. Soll auf dasselbe Feld zeigen wie RunZustand::r1_git usw.
