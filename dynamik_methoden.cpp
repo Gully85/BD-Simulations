@@ -16,7 +16,7 @@ using std::cout; using std::endl; using std::flush;
 using std::vector;
 
 
-extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_maxT;
+extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_maxT, T;
 extern const double max_reisedistanz;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
@@ -441,7 +441,7 @@ void RunZustand::RunDynamik::refresh_erwNachbar_debug(TimestepInfo &info){
 
 void RunZustand::zeitschritte_bis_obs(){
 	while(t < obs_dt){
-		t += dyn.zeitschritt(obs_dt-t);
+		t += (long double) dyn.zeitschritt(obs_dt-t);
 		schritte_seit_obs++;
 	}//while
 }//void RunDynamik::zeitschritte_bis_obs

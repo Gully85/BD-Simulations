@@ -361,7 +361,7 @@ public:
 	
 	//es werden const int runs viele Runs gestartet. Nummer dieses Runs.
 	int nr;
-	double t;
+	long double t;
 	int obs_nr;
 	int schritte_seit_obs;
 	
