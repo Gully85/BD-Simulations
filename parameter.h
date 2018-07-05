@@ -11,17 +11,17 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 1000; //darf nicht Null sein!
-const int N2 = 1000;
+const int N1 = 12000; //darf nicht Null sein!
+const int N2 = 12000;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 20.0*sqrt(10.0); // etwa 63
+const double L = 282.842; 
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt. Zweierpotenzen für gute Performance.
-const int FFT_samples = 256; 
+const int FFT_samples = 512; 
 
 
 // kapillarlaenge in Einheiten von sigma

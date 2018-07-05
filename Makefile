@@ -6,6 +6,7 @@ FLAGS_NORMAL = -O3
 
 FILES = main.cpp auswertung.cpp dynamik_methoden.cpp gridRoutinen.cpp allgemeine_methoden.cpp zufall.cpp 
 FILES_AUSWERTUNG = main_auswertung.cpp parameter.h zufall.cpp signaturen_auswertung.h positionen_speichernladen.cpp observablen_auswertung.cpp
+FILES_PROFILE = main_profile.cpp auswertung.cpp dynamik_methoden.cpp gridRoutinen.cpp allgemeine_methoden.cpp zufall.cpp 
 
 BD :  $(FILES)
 	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_NORMAL) -o BDkap
@@ -16,6 +17,8 @@ debug : $(FILES)
 auswertung: $(FILES_AUSWERTUNG)
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_NORMAL)
 
+profile: $(FILES_PROFILE)
+	g++ $(FILES_PROFILE) $(FLAGS_IMMER) $(FLAGS_NORMAL) -pg -o BDprofile
 
 auswertung_debug: $(FILES_AUSWERTUNG)
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_DEBUG)
