@@ -23,6 +23,8 @@ extern const int N1, N2;
 extern const double obs_dt;
 extern const bool noWCA, noRNG, quickInit, restrictRadial;
 
+extern const int max_write_interval;
+
 /*
 extern int** r1_git;
 extern double** r1_rel;
@@ -439,10 +441,16 @@ void RunZustand::RunDynamik::refresh_erwNachbar_debug(TimestepInfo &info){
 	
 }//void refresh_erwNachbar_debug
 
-void RunZustand::zeitschritte_bis_obs(){
+void RunZustand::zeitschritte_bis_obs(time_t last_write){
+        time_t last_write_here = last_write;
 	while(t < obs_dt){
 		t += (long double) dyn.zeitschritt(obs_dt-t);
+                time_t now = time(0);
 		schritte_seit_obs++;
+                if(now > last_write_here + max_write_interval){
+                    cout << "Run " << nr << ": " << schritte_seit_obs << " steps since CP. Avg dt: " << t/schritte_seit_obs << ". Performance: " << schritte_seit_obs/(now-last_write) <<" steps/s. Progress to next CP: " << 100*t/obs_dt << "%" << endl;
+                    last_write_here = now;
+                }
 	}//while
 }//void RunDynamik::zeitschritte_bis_obs
 

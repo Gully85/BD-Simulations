@@ -11,35 +11,35 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 12000; //darf nicht Null sein!
-const int N2 = 12000;
+const int N1 = 100; //darf nicht Null sein!
+const int N2 = 100;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 282.842; 
+const double L = 50.0; 
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt. Zweierpotenzen für gute Performance.
-const int FFT_samples = 512; 
+const int FFT_samples = 64; 
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 10.0; 
+const double lambda_kapillar = 60.0; 
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
-const double kapillar_vorfaktor = 0.1; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
+const double kapillar_vorfaktor = 9.0; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
 
 
 // Temperatur, in Einheiten kT/eps
-const double T = 20.0;
+const double T = 10.0;
 
 
 // maximaler Zeitschritt
-const double dt_max = 0.05;
+const double dt_max = 0.005;
 
 //maximale Reisedistanz in einem Zeitschritt
-const double max_reisedistanz = 0.002;
+const double max_reisedistanz = 0.01;
 
 //Verhältnis der Radien Typ1 und Typ2. Sigma11/Sigma22
 const double sigma11_22 = 1.0;
@@ -71,8 +71,10 @@ const bool quickInit = false;
 //Bewegung der Teilchen einschränken: Nur radial, Winkel zur x-Achse nach jedem Zeitschritt korrigieren
 const bool restrictRadial = false;
 //macht nur wenige Zeitschritte, schreibt zusätzliche Infos, vor allem über Kraftberechnung
-const bool debugmode = true;
+const bool debugmode = false;
 
+//have every run write its progress at least after this many seconds
+const int max_write_interval = 5;
 
 //mitteln über wie viele runs?
 const int runs = 1;
@@ -84,11 +86,10 @@ const int jobs = 1;
 const int maxThreads = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
-//const double obs_dt = 0.05; //alter Wert
-const double obs_dt = 0.05; //
+const double obs_dt = 0.5; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 20*20*10; //
+const int obs_anzahl = 500; //gesamt 20 Jeanszeiten
 
 
 // Binbreite Paarkorrelationsfunktion

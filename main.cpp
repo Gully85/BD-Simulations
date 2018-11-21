@@ -5,12 +5,12 @@
 #include <cstdlib>
 #define _USE_MATH_DEFINES
 #include <math.h>
-//#include "gridRoutinen.cpp"
 #include <fftw3.h>
-//#include "dynamik_methoden.cpp"
 #include <algorithm>
 #include <iostream>
 #include <omp.h>
+#include <ctime>
+
 
 //#include "auswertung.cpp"
 //#include "positionen_speichernladen.cpp"
@@ -64,9 +64,17 @@ int** r2_git = NULL;
 double** r2_rel = NULL;
 */
 
+/////////// TIMING INFO START /////////////////////
+
+// times are measured in seconds, except when stated otherwise
+time_t program_started_time;
+extern const int max_write_interval;
+/////////// TIMING INFO ENDE //////////////////////
+
 
 int main(){
 
+    program_started_time = time(0);
 	init_rng(); //Random Seed
 	//fftw_init_threads();
 
@@ -121,7 +129,7 @@ int main(){
 
 //#pragma omp parallel for
 for(int run=0; run<runs; run++){
-	
+    
     RunZustand theRun;
     #pragma omp critical
     {
@@ -132,7 +140,7 @@ for(int run=0; run<runs; run++){
 	theRun.init(run);
 	
 	
-	cout << "Run nr " << run << ": initialisiert." << endl;
+	cout << "Run nr " << run << ": init complete after " << time(NULL)-program_started_time <<" seconds." << endl;
     }
         
 	
@@ -210,7 +218,8 @@ for(int run=0; run<runs; run++){
             
         }
         
-	cout << "Run nr " << run << ": Obs-Point 1 fertig." << endl;
+	cout << "Run " << run << ": initial positions written, starting timesteps." << endl;
+        time_t last_write = time(0);
 	
 	for(int obs_nr=1; obs_nr<obs_anzahl; obs_nr++){
 		
@@ -225,10 +234,16 @@ for(int run=0; run<runs; run++){
 // 			cout << "t="<<t<<endl;
 		}//while obs-Punkt noch nicht erreicht
 		*/
-		theRun.zeitschritte_bis_obs();
-		
-		cout << "Run nr " << run << ": record obs-Punkt " << theRun.obs_nr+1 << " von " << obs_anzahl  << ". Zeitschritte seit letztem Obs-Punkt: " << theRun.schritte_seit_obs << endl;
-		
+		theRun.zeitschritte_bis_obs(last_write);
+                if(obs_nr > 1){
+                    int numSteps = theRun.schritte_seit_obs;
+                    time_t now = time(0);
+                    double steps_per_second = numSteps / (now-last_write);
+                    
+                    cout << "\nRun " << run << ": recording obs-Point " << theRun.obs_nr+1 << " / " << obs_anzahl  << ".\n";
+                    cout << "Run " << run << ": " << numSteps << " steps since CP. Avg dt: " << obs_dt/numSteps << ". Performance: " << steps_per_second <<" steps/s.\n";
+                    if (0 == run) cout << "Time since program launch: " << time(0) - program_started_time << " seconds." << endl;
+                }
 		/*
 		if(auswerten_korrfunk) record_korrelationsfunktion11(run, obs_nr);
 		if(auswerten_korrfunk) record_korrelationsfunktion22(run, obs_nr);
@@ -238,6 +253,7 @@ for(int run=0; run<runs; run++){
 		if(auswerten_animation && run==0) pos_schreiben(obs_nr*obs_dt, pos1, pos2);
 		*/
 		theRun.obs_point(obs_nr);
+                last_write = time(0);
 	}//for obs_nr
 	/*
 	if(auswerten_animation && run==0){

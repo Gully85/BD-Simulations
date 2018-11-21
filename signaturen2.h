@@ -5,6 +5,7 @@
 #include <fftw3.h>
 #include <iostream>
 #include <sstream>
+#include <ctime>
 
 
 
@@ -377,7 +378,7 @@ public:
 
 	void ausgabe_jeansgroessen();
 	
-	void zeitschritte_bis_obs();
+	void zeitschritte_bis_obs(time_t last_write);
 	void obs_point(int nr_obspoint); //alle Observablen ausrechnen, speichern
 	
 	//Schreibe Ergebnisse in Dateien
