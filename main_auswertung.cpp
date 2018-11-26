@@ -38,16 +38,16 @@ int main(){
 	//lese Positionen (zu allen Zeiten) aus Dateien
 	rvont_lesen();
 	
-	cout << "Berechne Mittelpunkte und Dichteprofile..." << endl;
+	//cout << "Berechne Mittelpunkte und Dichteprofile..." << endl;
 	
-	berechne_dichteprofile();
+	//berechne_dichteprofile();
 	
 	cout << "Berechne Korrelationsfunktionen..." << endl;
 	berechne_korrelationsfunktionen();
 	
 	cout << "Berechne Mittelwerte und Fehler..." << endl;
 	//schreibe Ergebnisse
-	auswerten_dichteprofile();
+	//auswerten_dichteprofile();
 	auswerten_korrelationsfunktionen();
 	
 	return 0;

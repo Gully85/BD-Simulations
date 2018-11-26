@@ -28,3 +28,7 @@ void statistik_1(vector<double>**& input, vector<double>*& mittelwerte, vector<d
 
 //abstandsquadrat von Teilchen i (Typ 1) und Teilchen j (Typ 1). Berücksichtigt periodische Randbedingungen. Analog andere Typen
 double abstand2(double*, double*);
+
+
+// gleichverteilte Zufallszahl
+double zufall_gleichverteilt_vonbis(double min, double max);

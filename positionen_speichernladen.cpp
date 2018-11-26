@@ -1,10 +1,12 @@
 // stellt Methoden bereit, die zu Beginn der Simulation Teilchen auf die richtigen Positionen setzen.
 
-#pragma once
+//#pragma once
 
-#include "signaturen.h"
+#include "signaturen2.h"
 #include <string>
-
+#include <iostream>
+#include <math.h>
+#include "parameter.h"
 
 extern int** r1_git;
 extern int** r2_git;
@@ -21,8 +23,10 @@ extern double**** r2_abs;
 
 extern const string startpos_dateiname;
 extern const double startpos_kreisradius;
+extern const string pos_output_dateiname;
 
 
+using std::cout; using std::endl; using std::flush;
 
 
 // schreibt aktuelle Teilchenpositionen in Datei

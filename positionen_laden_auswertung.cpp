@@ -39,8 +39,15 @@ bool rvont_lesen(){
 			return false;
 		}
 		
+		// skip first two lines. One is comment, one is empty
+		char buf[100];
+                if(NULL == fgets(buf,100,in1)) cout << "error skipping empty line"<<endl;
+                //if(NULL == fgets(buf,100,in1)) cout << "error skipping empty line"<<endl;
+                //if(NULL == fgets(buf,100,in2)) cout << "error skipping empty line"<<endl;
+                if(NULL == fgets(buf,100,in2)) cout << "error skipping empty line"<<endl;
+		
 		//zeit ist in Einheiten obs_dt, geht von Null bis obs_anzahl. In den Dateien stehen obs_anzahl viele Blöcke, und jeder Block hat N (Teilchenzahl des Typs) Einträge, und jeder Eintrag ist eine Zeile "Zeit TAB x TAB y \n"
-		for(int zeit=0; zeit<obs_anzahl; zeit++){
+		for(int zeit=1; zeit<obs_anzahl; zeit++){
 			
 			float tmpt, tmpx, tmpy;
 		//Typ 1

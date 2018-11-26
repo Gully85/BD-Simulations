@@ -11,17 +11,17 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 100; //darf nicht Null sein!
-const int N2 = 100;
+const int N1 = 500; //darf nicht Null sein!
+const int N2 = 500;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 50.0; 
+const double L = 100.0; 
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt. Zweierpotenzen für gute Performance.
-const int FFT_samples = 64; 
+const int FFT_samples = 128; 
 
 
 // kapillarlaenge in Einheiten von sigma
@@ -86,17 +86,17 @@ const int jobs = 1;
 const int maxThreads = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
-const double obs_dt = 0.5; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
+const double obs_dt = 0.05; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 500; //gesamt 20 Jeanszeiten
+const int obs_anzahl = 499; //gesamt 20 Jeanszeiten
 
 
 // Binbreite Paarkorrelationsfunktion
-const double korr_dr = 0.5;
+const double korr_dr = 0.2;
 
 // größtes r der Paarkorrelationsfunktion
-const double korr_rmax = 200.0;
+const double korr_rmax = L*0.5;
 
 
 // Binbreite Dichteprofil

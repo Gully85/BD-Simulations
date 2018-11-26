@@ -48,51 +48,6 @@ extern const bool auswerten_rho2FT_normjerun;
 
 using std::vector; using std::cout; using std::endl;
 
-//semi-globale Variablen, sichtbar für die Methoden in dieser Datei. Namespace=Dateiname.
-/*
-namespace auswertung{
-	//Paarkorrelationsfunktion. Erster Index Durchlauf, zweiter Index Zeit in Einheiten obs_dt, dritter Index r in Einheiten korr_dr
-	vector<double>** g11 = NULL;
-	vector<double>** g12 = NULL;
-	vector<double>** g22 = NULL;
-	
-
-
-	//fouriertransformierte Dichte, Realteil und Imaginärteil. Erster Index Durchlauf, zweiter Index Zeit/obs_dt, dritter Index q (nachschlagen in order[] und qabs2[])
-	vector<double>** ftrho1_re = NULL;
-	vector<double>** ftrho1_im = NULL;
-	vector<double>** ftrho2_re = NULL;
-	vector<double>** ftrho2_im = NULL;
-
-	//Hilfsfelder für fouriertransformierte Dichte
-	vector<int> ftrho_order;
-	vector<int> ftrho_qabs2;
-	vector<int> ftrho_beitraege;
-
-
-
-	//Dichte nach Density-Gridding für rho(k) via FFTW. Muss (datei-)global sein, weil FFT vorab geplant wird.
-	fftw_complex* rhox = NULL; //Ortsraum. Index-Wrapping.
-	fftw_complex* rhok = NULL; //k-Raum. Index-Wrapping, Verschiebung, alternierende Vorzeichen.
-
-	//Fouriertransformierte Dichte, berechnet via FFTW. Erster Index Durchlauf, zweiter Index obs/dt, dritter Index q/dq_rhoFFTW. Kein Index-Wrapping, Verschiebung oder Vorzeichen. Binning.
-	vector<double>** rho1FFTW_re = NULL;
-	vector<double>** rho1FFTW_im = NULL;
-	vector<double>** rho2FFTW_re = NULL;
-	vector<double>** rho2FFTW_im = NULL;
-	
-	//zaehlt für jeden Bin mit, wie viele k drinliegen
-	int* rhoFFTW_beitraege;
-	
-	//speichert je run das rhoFFTW zur Zeit t=0.
-
-	fftw_plan rhoFFTW_plan = NULL;
-	
-	//für Auswertung mit Johannes' Skript
-	FILE* out_rhojerun = NULL;
-	
-}//namespace auswertung
-*/
 
 void RunZustand::RunObs::obs_init(int run){
 	if (auswerten_korrfunk) init_korrelationsfunktion();

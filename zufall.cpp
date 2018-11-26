@@ -1,58 +1,50 @@
 // stellt Methoden für die Erzeugung von Zufallszahlen bereit
 
+// Gaußverteilte Zufallszahlen sind nicht mehr drin. Können zB in ~/Diplomarbeit/weichcos/Phi0_2/zufall.cpp nachgelesen werden
+
+
 #include <cstdlib>
 #include <math.h>
-#include <time.h>
+#include <random>
+// #include <chrono>
+#include <functional>
 
-void init_rng(){
-	srand(time(NULL));
-}//void init_rng
+//typedef std::chrono::high_resolution_clock myclock;
+//myclock::time_point beginning = myclock::now();
+
+using std::mt19937_64;  //generator
+using std::uniform_real_distribution; 
+
+mt19937_64 generator(time(NULL));
+// mt19937_64 generator;
+
+uniform_real_distribution<double> dist(0.0,1.0);
 
 //gleichverteilte Zufallszahl aus [0.0 , 1.0]
-double zufall_gleichverteilt(void){
-	const int max = RAND_MAX;
+auto zufall_gleichverteilt = std::bind(dist, generator);
+//Typ ist: Methode (void) -> double
 
-	return (double)rand()/max;	
+
+void init_rng(){
+	
+// 	generator.seed( time(NULL) );
 }
 
-//gleichverteilte Zufallszahl aus [min , max]
+
+
 double zufall_gleichverteilt_vonbis(double min, double max){
-	double ret = zufall_gleichverteilt(); 	//0.0 bis 1.0
 	
-	ret *= (max - min);			// 0.0 bis (max-min)
-
-	return min + ret;
-}//zufall_gleichverteilt_vonbis
-
-
-//zwei (unabhängige) gaußverteilte Zufallszahlen mit Mittelwert Null und vorgegebener Varianz (Standardwert: Eins)
-void zufall_gaussverteilt(double &z1, double &z2, double sigma=1.0){
+	return min + (max-min)*zufall_gleichverteilt();
 	
-	double x1 = zufall_gleichverteilt();
-	double x2 = zufall_gleichverteilt();
+}//double zufall_gleichverteilt_vonbis
 
-	z1 = sqrt(-2.0 * log(x1)) * cos(2.0*M_PI*x2)*sigma;
-	z2 = sqrt(-2.0 * log(x1)) * sin(2.0*M_PI*x2)*sigma;
-	
-	
-	return;
-	
-}//void zufall_gaussverteilt
+
+//Zufallszahl aus [0,N-1] ganzzahlig
+int zufall_Int(int N){
+	return ((int) (N*zufall_gleichverteilt()))%N;
+}//int zufall_Int
 
 
 
 
-//zwei gaußverteile Zufallszahlen z1, z2 mit Varianzen sigma1, sigma2 und Korrelation c12
-void zufall_gaussverteilt_korreliert(double &z1, double &z2, double sigma1, double sigma2, double c12){
 
-	//erzeuge zwei unabhängige Zufallszahlen x1, x2, mit Varianzen 1.0 und Korrelation 0.0
-	double x1, x2;
-	
-	zufall_gaussverteilt(x1, x2);
-	
-	z1 = sigma1 * x1;
-	z2 = sigma2*(c12*x1 + sqrt(1-c12*c12)*x2);
-
-	return;	
-	
-}//void zufall_gaussverteilt_korreliert

@@ -342,6 +342,7 @@ void berechne_dichteprofile(){
 //berechnet für jeden Run und jede Zeit die Paarkorrelationsfunktionen g11, g12, g22. Schreibt sie in gij[][][]
 void berechne_korrelationsfunktionen(){
 	using namespace Observablen;
+        using std::cout; using std::endl;
 	
 	g11 = new vector<double>*[jobs];
 	g12 = new vector<double>*[jobs];
@@ -361,13 +362,18 @@ void berechne_korrelationsfunktionen(){
 			g11[job][zeit].assign(korr_bins, 0.0);
 			g12[job][zeit].assign(korr_bins, 0.0);
 			g22[job][zeit].assign(korr_bins, 0.0);
+                        
+                        //if (498 == zeit) cout << "z365 zeit=max" << endl;
 			
 			//g11 zuerst
 			const double rho1 = N1/L/L;
 			const double vorfaktor11 = 2.0/((N1-1)*M_PI*rho1*korr_dr*korr_dr);
 			const double rho2 = N2/L/L;
-			const double vorfaktor12 = 1.0/((N1-1)*M_PI*rho2*korr_dr*korr_dr);
+                        //const double vorfaktor12 = 1.0/((N1-1)*M_PI*rho2*korr_dr*korr_dr);
+                        const double vorfaktor12 = V/(N2*N1*M_PI*korr_dr);
 			const double vorfaktor22 = 2.0/((N2-1)*M_PI*rho2*korr_dr*korr_dr);
+                        
+                        
 			
 			for(int i=0; i<N1; i++){
 				for(int j=0; j<i; j++){
@@ -378,13 +384,16 @@ void berechne_korrelationsfunktionen(){
 					
 					g11[job][zeit][bin] += vorfaktor11/(2.0*bin+1);
 				}//for j, Typ 1
+				//if (499 == zeit) cout << "z386 zeit=max" << endl;
 				for(int j=0; j<N2; j++){
 					double a2 = abstand2(r1_abs[job][zeit][i], r2_abs[job][zeit][j]);
 					int bin = (int)(sqrt(a2)/korr_dr);
 					if(0 > bin || bin > korr_bins) bin=korr_bins-1;
-					g12[job][zeit][bin] += vorfaktor12/(2.0*bin+1);
+					g12[job][zeit][bin] += vorfaktor12/(bin*korr_dr);
 				}//for j, Typ 2
 			}//for i
+			
+			//if (498 == zeit) cout << "z394 zeit=max" << endl;
 			
 			for(int i=0; i<N2; i++){
 				for(int j=0; j<i; j++){
@@ -395,13 +404,18 @@ void berechne_korrelationsfunktionen(){
 				}//for j
 			}//for i
 			
+			//std::cout << "z400, zeit=" << zeit << std::endl;
+			
 			for(int bin=0; bin<korr_bins; bin++)
 				fprintf(out, "%g \t %g \t %g \t %g \t %g \n", zeit*obs_dt, bin*korr_dr, g11[job][zeit][bin], g12[job][zeit][bin], g22[job][zeit][bin]);
 			
 			fprintf(out, "\n");
 		}//for zeit
+		//std::cout << "z407" << std::endl;
 	fclose(out);
 	}//for job
+	
+	//std::cout << "berechne_korrelationsfunktionen() fertig" << std::endl;
 	
 }//void berechne_korrelationsfunktionen
 
