@@ -293,7 +293,7 @@ void RunZustand::init(int nr){
                         init_kernundring();
                         break;
 		default:
-			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5" << endl;
+			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5,6" << endl;
 			return;
 	}//switch startpos_methode
 	
@@ -359,3 +359,30 @@ void RunZustand::RunDynamik::init(){
 	WCA_init(); 
 	kapkraefte_init();
 }//void RunDynamik::init
+
+
+
+//schreibt aktuelle Teilchenpositionen in zwei Dateien. FILE-Pointer müssen übergeben werden.
+void RunZustand::pos_schreiben(double t, FILE* datei1, FILE* datei2){
+	
+	for(int i=0; i<N1; i++){
+		double x = r1_git[i][0]*nachList_Breite + r1_rel[i][0];
+		double y = r1_git[i][1]*nachList_Breite + r1_rel[i][1];
+		
+		//Format: t TAB x TAB y
+		fprintf(datei1, "%9.5f \t %g \t %g \n", t, x, y);
+	}//for i
+	fprintf(datei1, "\n");
+	
+	if(0 == N2) return;
+	
+	for(int i=0; i<N2; i++){
+		double x = r2_git[i][0]*nachList_Breite + r2_rel[i][0];
+		double y = r2_git[i][1]*nachList_Breite + r2_rel[i][1];
+		
+		//Format: t TAB x TAB y
+		fprintf(datei2, "%9.5f \t %g \t %g \n", t, x, y);
+	}//for i bis N2
+	fprintf(datei2, "\n");
+	
+}//void pos_schreiben

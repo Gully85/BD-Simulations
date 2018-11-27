@@ -72,19 +72,42 @@ unset multiplot;
 !mkdir animation3
 do for [k=0:anzahl_frames-1:3]{ \
 t_inTJ = k / frames_per_tJ ; \
-ti_str = sprintf("t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames)
-set title ti_str ;\
+ti_str = sprintf("t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
 set output "animation3/frame_". sprintf("%03.0f",k) . ".png"; \
+set multiplot layout 1,2 title ti_str ;\
+set arrow 99 from L/10,L/2 to L/10+lam,L/2 arrowstyle 1
+set label 99 at L/10+lam/2,L*0.52 "{/Symbol l}" font ",40"
+set xr [0:L]; set yr [0:L]; \
+unset xlabel; unset xtics; unset ytics; \
 plot datei1 using 2:3 every :::k::k ls 1, datei2 using 2:3 every :::k::k ls 2; \
-}
+unset arrow 99; unset label 99; \
+set xr [0.0001 : L*0.5];\
+set xlabel "r/{/Symbol s}" ;\
+set yr [0 : 5] ;\
+set ytics add 1 ;\
+set xtics ;\
+plot 'korrfunk_run1.txt' every :::k::k using 2:($3*$2/32) ls 1, '' every :::k::k using 2:($5*$2/32) ls 2, '' every :::k::k using 2:($4*$2/32) ls 3, '' every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb 'black' lw 3; \
+unset multiplot;}
 
 !mkdir animation1
 do for [k=0:anzahl_frames-1:1]{ \
 t_inTJ = k / frames_per_tJ ; \
-ti_str = sprintf("t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames)
-set title ti_str ;\
+ti_str = sprintf("t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
 set output "animation1/frame_". sprintf("%03.0f",k) . ".png"; \
+set multiplot layout 1,2 title ti_str ;\
+set arrow 99 from L/10,L/2 to L/10+lam,L/2 arrowstyle 1
+set label 99 at L/10+lam/2,L*0.52 "{/Symbol l}" font ",40"
+set xr [0:L]; set yr [0:L]; \
+unset xlabel; unset xtics; unset ytics; \
 plot datei1 using 2:3 every :::k::k ls 1, datei2 using 2:3 every :::k::k ls 2; \
+unset arrow 99; unset label 99; \
+set xr [0.0001 : L*0.5];\
+set xlabel "r/{/Symbol s}" ;\
+set yr [0 : 5] ;\
+set ytics add 1 ;\
+set xtics ;\
+plot 'korrfunk_run1.txt' every :::k::k using 2:($3*$2/32) ls 1, '' every :::k::k using 2:($5*$2/32) ls 2, '' every :::k::k using 2:($4*$2/32) ls 3, '' every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb 'black' lw 3; \
+unset multiplot;
 }
 
 #set term postscript enhanced eps color solid font ",28" size 3,3
