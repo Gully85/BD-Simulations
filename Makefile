@@ -16,6 +16,10 @@ debug : $(FILES)
 
 auswertung: $(FILES_AUSWERTUNG)
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_NORMAL) -g -o auswertung
+	./auswertung
+	python3 ParProgress2tmp.py
+	gnuplot plot_animation.plt 
+	rm tmp
 
 profile: $(FILES_PROFILE)
 	g++ $(FILES_PROFILE) $(FLAGS_IMMER) $(FLAGS_NORMAL) -pg -o BDprofile

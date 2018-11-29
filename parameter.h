@@ -28,18 +28,18 @@ const int FFT_samples = 128;
 const double lambda_kapillar = 60.0; 
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
-const double kapillar_vorfaktor = 9.0; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
+const double kapillar_vorfaktor = 1.111111111; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
 
 
 // Temperatur, in Einheiten kT/eps
-const double T = 10.0;
+const double T = 100.0;
 
 
 // maximaler Zeitschritt
 const double dt_max = 0.005;
 
 //maximale Reisedistanz in einem Zeitschritt
-const double max_reisedistanz = 0.01;
+const double max_reisedistanz = 0.24;
 
 //Verhältnis der Radien Typ1 und Typ2. Sigma11/Sigma22
 const double sigma11_22 = 1.0;
@@ -74,7 +74,7 @@ const bool restrictRadial = false;
 const bool debugmode = false;
 
 //have every run write its progress at least after this many seconds
-const int max_write_interval = 5;
+const int max_write_interval = 900;
 
 //mitteln über wie viele runs?
 const int runs = 1;
@@ -86,10 +86,10 @@ const int jobs = 1;
 const int maxThreads = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
-const double obs_dt = 0.05; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
+const double obs_dt = 0.5; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 499; //gesamt 20 Jeanszeiten
+const int obs_anzahl = 500; //gesamt 20 Jeanszeiten
 
 
 // Binbreite Paarkorrelationsfunktion

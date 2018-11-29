@@ -370,7 +370,7 @@ void berechne_korrelationsfunktionen(){
 			const double vorfaktor11 = 2.0/((N1-1)*M_PI*rho1*korr_dr*korr_dr);
 			const double rho2 = N2/L/L;
                         //const double vorfaktor12 = 1.0/((N1-1)*M_PI*rho2*korr_dr*korr_dr);
-                        const double vorfaktor12 = V/(N2*N1*M_PI*korr_dr);
+                        const double vorfaktor12 = L*L/(N2*N1*M_PI*korr_dr);
 			const double vorfaktor22 = 2.0/((N2-1)*M_PI*rho2*korr_dr*korr_dr);
                         
                         

@@ -635,6 +635,7 @@ void RunZustand::RunObs::schreibe_pos(int nr){
 		fprintf(pos1, "%g \t %g \t %g \n", nr*obs_dt, x, y);
 	}//for i bis N1
 	fprintf(pos1, "\n");
+        fflush(pos1);
 	
 	if(0 == N2) return;
 	for(int i=0; i<N2; i++){

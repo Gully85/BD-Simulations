@@ -383,9 +383,6 @@ public:
 	
 	//Schreibe Ergebnisse in Dateien
 	void schreibe_obs();
-        
-        // falls langsamer Fortschritt detektiert wird: schreibe pos aller Teilchen in Datei
-        void pos_schreiben(double t, FILE*, FILE*);
 	
 	
 private:
@@ -447,4 +444,3 @@ double zufall_gleichverteilt();
 double zufall_gleichverteilt_vonbis(double min, double max);
 
 string int_to_string(int);
-
