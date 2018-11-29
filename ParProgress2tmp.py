@@ -44,8 +44,9 @@ with open("parameter.h" ,"r") as fileP:
                          N1,N2,L,lam,obs_dt,f2_epsgam))
 
 # if this point is reached, reading from parameter.h was successful.
-rho = (N1+N2)/L
+rho = (N1+N2)/(L*L)
 tJ = 1./(rho * f2_epsgam)
+print(rho, tJ)
 frames_per_tJ = tJ / obs_dt
 
 # number of checkpoints already reached

@@ -14,7 +14,7 @@ BD :  $(FILES)
 debug : $(FILES)
 	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_DEBUG) -o debug
 
-auswertung: $(FILES_AUSWERTUNG)
+auswertung: $(FILES_AUSWERTUNG) ParProgress2tmp.py plot_animation.plt
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_NORMAL) -g -o auswertung
 	./auswertung
 	python3 ParProgress2tmp.py
