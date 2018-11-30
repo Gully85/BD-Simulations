@@ -383,6 +383,9 @@ public:
 	
 	//Schreibe Ergebnisse in Dateien
 	void schreibe_obs();
+        
+        //schreibt aktuelle Teilchenpositionen in Dateien. FILE-Pointer muss übergeben werden.
+        void pos_schreiben(double t, FILE* datei1, FILE* datei2);
 	
 	
 private:

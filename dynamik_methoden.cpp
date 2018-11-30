@@ -41,6 +41,34 @@ extern const int startpos_methode; //Zufall=1, aus Datei=2, Gitterstart=3, alleg
 const double dx = densGrid_Breite;
 const int Z = densGrid_Zellen;
 
+/*
+/// semi-globale Felder/Variablen, erreichbar fuer die Methoden in dieser Datei. Namespace = Dateiname
+namespace dynamik_methoden{
+fftw_complex* rhox = NULL; // Dichte vor  Fouriertrafo FORWARD. Index-Wrapping
+fftw_complex* rhok = NULL; // Dichte nach Fouriertrafo FORWARD. Index-Wrapping, Verschiebung und alternierende Vorzeichen
+double* sinxG = NULL;	   // der Term sin(qx dx)/dx G(q). Index-Wrapping und Verschiebung
+double* sinyG = NULL;	   // der Term sin(qy dx)/dx G(q). Index-Wrapping und Verschiebung
+fftw_complex* Fxk = NULL;  // rhok mal i sinxG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
+fftw_complex* Fyk = NULL;  // rhok mal i sinyG. Index-Wrapping, Verschiebung und alternierende Vorzeichen
+fftw_complex* Fx = NULL;   // Kraefte (x-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
+fftw_complex* Fy = NULL;   // Kraefte (y-komp) nach Fouriertrafo BACKWARD. Index-Wrapping
+vector<int>** erwNachbarn1 = NULL; // Erweiterte Nachbarliste. Erster Index = ZellenNr in x-Richtung, zweiter=y-Richtung. Im vector stehen die Indices aller Teilchen, die in der gleichen oder benachbarten Zellen sind.
+vector<int>** erwNachbarn2 = NULL; //hier stehen die Indices der Typ2-Teilchen drin
+
+double** F1kap = NULL; // Kapillarkraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2kap = NULL;
+double** F1_WCA = NULL; //WCA-Kraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2_WCA = NULL;
+double** F1_noise = NULL; //Zufallskraefte. Erster Index TeilchenNr, zweiter Index Raumrichtung
+double** F2_noise = NULL;
+
+const int Z = densGrid_Zellen;
+
+fftw_plan forward_plan=NULL;
+fftw_plan backx_plan=NULL;
+fftw_plan backy_plan=NULL;
+}//namespace dynMeth
+*/
 
 //Fuehre einen Zeitschritt durch: Berechne Kraefte, ermittle optimale Dauer, bewege Teilchen, aktualisiere ggf Nachbarlisten. Gibt Dauer zurueck.
 double RunZustand::RunDynamik::zeitschritt(double tmax){ 
@@ -415,7 +443,6 @@ void RunZustand::RunDynamik::refresh_erwNachbar_debug(TimestepInfo &info){
 
 void RunZustand::zeitschritte_bis_obs(time_t last_write){
         time_t last_write_here = last_write;
-        double progress_last = 0.0;
 	while(t < obs_dt){
 		t += (long double) dyn.zeitschritt(obs_dt-t);
                 time_t now = time(0);
@@ -423,19 +450,7 @@ void RunZustand::zeitschritte_bis_obs(time_t last_write){
                 if(now > last_write_here + max_write_interval){
                     cout << "Run " << nr << ": " << schritte_seit_obs << " steps since CP. Avg dt: " << t/schritte_seit_obs << ". Performance: " << schritte_seit_obs/(now-last_write) <<" steps/s. Progress to next CP: " << 100*t/obs_dt << "%" << endl;
                     last_write_here = now;
-                    
-                    if (progress_last > 0.999*t/obs_dt){
-                        cout << "Run " <<nr<<": Slow progress detected. Writing positions to slow_1.txt and slow_2.txt.\n";
-                        FILE* out1 = fopen("slow_1.txt", "w");
-                        FILE* out2 = fopen("slow_2.txt", "w");
-                        pos_schreiben(0.0, out1, out2);
-                        
-                        RunZustand::RunDynamik::TimestepInfo info;
-                        t += (long double) dyn.zeitschritt_debug(max_reisedistanz, info);
-                        info.ausgabe();
-                        progress_last = t/obs_dt;
-                    }//if kein progress
-                }// if write_interval seconds since last write
+                }
 	}//while
 }//void RunDynamik::zeitschritte_bis_obs
 
@@ -1272,6 +1287,58 @@ void erwListe_rem(vector<int>& liste, int k){
 	liste.erase(i);
 }//void erwListe_rem
 
+/*
+//bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
+double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int NN){
+	if (0==NN) return deltat;
+	
+	double ret = deltat; //spaeter return-Wert, kann nur kleiner werden
+	
+	const double mrd = max_reisedistanz; //kuerzerer Name
+	
+	//Loesen quadratischer Gleichungen:
+	// Aus m < |Fdt + sqrt(2T dt)dn| erhaelt man
+	// Falls F==0: dt < m^2/(2T (dn^2))
+	// Falls F!=0: dt < (w-|u|)^2 mit u=dn*sqrt(2T)/(8F) und w=sqrt(u^2 + m/(4|F|))
+	
+	// hier:
+	// m = mrd
+	// F = F_WCA+Fkap
+	// dn = F_noise
+	// T=T und dt = ret
+	
+	
+	for(int teilchen=0; teilchen<NN; teilchen++){
+		
+		// x-Komponente
+		double F = F_WCA[teilchen][0] + Fkap[teilchen][0];
+		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][0]*F_noise[teilchen][0]));
+		else{
+			double u = F_noise[teilchen][0]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else F ungleich Null
+		
+		
+		
+		
+		// y-Komponente
+		F = F_WCA[teilchen][1] + Fkap[teilchen][1];
+		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
+			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][1]*F_noise[teilchen][1]));
+		else{
+			double u = F_noise[teilchen][1]*sqrt(0.5*T)/F;
+			double w = sqrt(u*u + mrd/fabs(F));
+			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
+		}//else F ungleich Null
+		
+		
+		
+	}//for teilchen
+	return ret;
+}//double optimaler_zeitschritt 
+// */
 
 double RunZustand::RunDynamik::optimaler_zeitschritt(){
 	double ret = dt_max; //späterer Return-Wert, kann nur kleiner werden
