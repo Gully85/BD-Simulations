@@ -367,10 +367,12 @@ void berechne_korrelationsfunktionen(){
 			
 			//g11 zuerst
 			const double rho1 = N1/L/L;
-			const double vorfaktor11 = 2.0/((N1-1)*M_PI*rho1*korr_dr*korr_dr);
 			const double rho2 = N2/L/L;
-                        //const double vorfaktor12 = 1.0/((N1-1)*M_PI*rho2*korr_dr*korr_dr);
-                        const double vorfaktor12 = L*L/(N2*N1*M_PI*korr_dr);
+                        
+                        //const double vorfaktor11 = L*L/(2*N1*(N1-1)*korr_dr*korr_dr*M_PI);
+                        //const double vorfaktor12 = L*L/(N2*N1*M_PI*korr_dr);
+                        const double vorfaktor12 = 1.0/((N1-1)*M_PI*rho2*korr_dr*korr_dr);
+                        const double vorfaktor11 = 2.0/((N1-1)*M_PI*rho1*korr_dr*korr_dr);
 			const double vorfaktor22 = 2.0/((N2-1)*M_PI*rho2*korr_dr*korr_dr);
                         
                         
@@ -381,15 +383,14 @@ void berechne_korrelationsfunktionen(){
 					
 					int bin = (int)(sqrt(a2)/korr_dr);
 					if(0 > bin || bin > korr_bins) bin=korr_bins-1;
-					
-					g11[job][zeit][bin] += vorfaktor11/(2.0*bin+1);
+					g11[job][zeit][bin] += vorfaktor11/bin;
 				}//for j, Typ 1
 				//if (499 == zeit) cout << "z386 zeit=max" << endl;
 				for(int j=0; j<N2; j++){
 					double a2 = abstand2(r1_abs[job][zeit][i], r2_abs[job][zeit][j]);
 					int bin = (int)(sqrt(a2)/korr_dr);
 					if(0 > bin || bin > korr_bins) bin=korr_bins-1;
-					g12[job][zeit][bin] += vorfaktor12/(bin*korr_dr);
+					g12[job][zeit][bin] += vorfaktor12/bin;
 				}//for j, Typ 2
 			}//for i
 			
@@ -400,7 +401,7 @@ void berechne_korrelationsfunktionen(){
 					double a2 = abstand2(r2_abs[job][zeit][i], r2_abs[job][zeit][j]);
 					int bin = (int)(sqrt(a2)/korr_dr);
 					if(0 > bin || bin > korr_bins) bin=korr_bins-1;
-					g22[job][zeit][bin] += vorfaktor22/(2.0*bin+1);
+					g22[job][zeit][bin] += vorfaktor22/bin;
 				}//for j
 			}//for i
 			
