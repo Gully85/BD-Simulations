@@ -11,28 +11,28 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 500; //darf nicht Null sein!
-const int N2 = 500;
+const int N1 = 6125; //darf nicht Null sein!
+const int N2 = 6125;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 100.0; 
+const double L = 350.0; 
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
 
 // Anzahl Samples in der Fouriertransformation. Nur gerade Zahlen erlaubt. Zweierpotenzen für gute Performance.
-const int FFT_samples = 128; 
+const int FFT_samples = 384; 
 
 
 // kapillarlaenge in Einheiten von sigma
-const double lambda_kapillar = 60.0; 
+const double lambda_kapillar = 25.0; 
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
 const double kapillar_vorfaktor = 1.111111111; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
 
 
 // Temperatur, in Einheiten kT/eps
-const double T = 100.0;
+const double T = 121.527777777;
 
 
 // maximaler Zeitschritt
@@ -73,6 +73,9 @@ const bool restrictRadial = false;
 //macht nur wenige Zeitschritte, schreibt zusätzliche Infos, vor allem über Kraftberechnung
 const bool debugmode = false;
 
+// softening WCA interaction: no two-particle-force can be larger than this
+const double maxPairWCA = 1.0e5;
+
 //have every run write its progress at least after this many seconds
 const int max_write_interval = 900;
 
@@ -86,10 +89,10 @@ const int jobs = 1;
 const int maxThreads = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
-const double obs_dt = 0.5; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
+const double obs_dt = 0.2; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 500; //gesamt 20 Jeanszeiten
+const int obs_anzahl = 5000; //gesamt 20 Jeanszeiten
 
 
 // Binbreite Paarkorrelationsfunktion

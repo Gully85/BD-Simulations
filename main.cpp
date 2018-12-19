@@ -167,7 +167,7 @@ for(int run=0; run<runs; run++){
             fprintf(debugfile2, "# Format: mrd TAB <F_WCA_max> TAB |F_WCA_highest| TAB dt \n\n");
             
             double mrd = 1.0;
-            for(; mrd > 0.00000001; mrd *= 0.95){
+            for(; mrd > 0.01; mrd *= 0.95){
                 
                 cout << "mrd=" << mrd << endl;
                 
@@ -180,7 +180,7 @@ for(int run=0; run<runs; run++){
                 for(int count=0; count<50; count++){
                     theRun.dyn.zeitschritt_debug(mrd, info, true);
                     dt_mittel += info.dt/50.0;
-                    double F = info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy;
+                    double F = sqrt( info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy );
                     F_mittel += F/50.0;
                     if (F > F_highest){
                         F_highest = F;
@@ -190,7 +190,7 @@ for(int run=0; run<runs; run++){
                 fprintf(debugfile1, "%g \t %g \t %g \t %g \n", mrd, F_mittel, F_highest, dt_mittel);
                 
                 // einige Zeitschritte überspringen
-                int num_skip = (int) 1.5/mrd;
+                int num_skip = (int) (1.5/mrd);
                 if (num_skip < 50) num_skip=50;
                 
                 for(int count=0; count<num_skip; count++)
@@ -203,7 +203,7 @@ for(int run=0; run<runs; run++){
                 for(int count=0; count<50; count++){
                     theRun.dyn.zeitschritt_debug(mrd, info, true);
                     dt_mittel += info.dt/50.0;
-                    double F = info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy;
+                    double F = sqrt( info.maxWCAx*info.maxWCAx + info.maxWCAy*info.maxWCAy );
                     F_mittel += F/50.0;
                     if (F > F_highest){
                         F_highest = F;

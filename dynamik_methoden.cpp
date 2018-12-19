@@ -17,11 +17,11 @@ using std::vector;
 
 
 extern const double densGrid_Breite, dq, lambda_kapillar, L, zweihoch1_6, kapillar_vorfaktor, dt_maxT, T;
-extern const double max_reisedistanz;
+extern const double max_reisedistanz, maxPairWCA;
 extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
 extern const double obs_dt;
-extern const bool noWCA, noRNG, quickInit, restrictRadial;
+extern const bool noWCA, noRNG, quickInit, restrictRadial, debugmode;
 
 extern const int max_write_interval;
 
@@ -675,10 +675,22 @@ void RunZustand::RunDynamik::berechne_WCA11(){
 			// a^(-8) und a^(-14)
 			double a_8 = 1.0/(a2*a2*a2*a2);
 			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+                        
+                        //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+                        double abs_F = 4.0*6.0*(2.0*a_14 - a_8);
+                        
+                        // if larger than allowed, set to max allowed value
+                        if(abs_F > maxPairWCA) 
+                            abs_F = maxPairWCA;
 			
-			//addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
-			F1_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
-			F1_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
+			//addiere Kraefte zu F_WCA[i]. 
+			F1_WCA[i][0] += abs_F * dx;
+			F1_WCA[i][1] += abs_F * dy;
+                        
+                        if(debugmode){
+                            if(F1_WCA[i][0] > 20*maxPairWCA || F1_WCA[i][1] > 20*maxPairWCA)
+                                cout << "Typ 1, i="<<i<<". The force is strong in this one." <<endl;
+                        }//if debugmode
 			
 			
 			
@@ -748,9 +760,22 @@ void RunZustand::RunDynamik::berechne_WCA11_debug(TimestepInfo &info){
             double a_8 = 1.0/(a2*a2*a2*a2);
             double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
             
-            //addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
-            F1_WCA[i][0] += 4.0*6.0*(2.0*a_14 - a_8) * dx;
-            F1_WCA[i][1] += 4.0*6.0*(2.0*a_14 - a_8) * dy;
+            //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+            double abs_F = 4.0*6.0*(2.0*a_14 - a_8);
+            
+            // if larger than allowed, set to max allowed value
+            if(abs_F > maxPairWCA) 
+                abs_F = maxPairWCA;
+            
+            //addiere Kraefte zu F_WCA[i]. 
+            F1_WCA[i][0] += abs_F * dx;
+            F1_WCA[i][1] += abs_F * dy;
+            
+            if(debugmode){
+                if(F1_WCA[i][0] > 20*maxPairWCA || F1_WCA[i][1] > 20*maxPairWCA)
+                    cout << "Typ 1, i="<<i<<". The force is strong in this one." <<endl;
+            }//if debugmode
+            
         }//for j
     }//for i
 }//void berechne_WCA11_debug
@@ -824,11 +849,23 @@ void RunZustand::RunDynamik::berechne_WCA22(){
 			// a^(-8) und a^(-14)
 			double a_8 = 1.0/(a2*a2*a2*a2);
 			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+                        
+                        //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+                        double abs_F = eps22_11*sigma11_22 * 4.0*6.0*(2.0*a_14 - a_8);
+                        
+                        // if larger than allowed, set to max allowed value
+                        if(abs_F > maxPairWCA) 
+                            abs_F = maxPairWCA;
 			
-			//addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
-			F2_WCA[i][0] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dx;
-			F2_WCA[i][1] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dy;
-			
+			//addiere Kraefte zu F_WCA[i]. 
+			F2_WCA[i][0] += abs_F * dx;
+			F2_WCA[i][1] += abs_F * dy;
+                        
+                        if(debugmode){
+                            if(F2_WCA[i][0] > 20*maxPairWCA || F2_WCA[i][1] > 20*maxPairWCA)
+                                cout << "Typ 2, i="<<i<<". The force is strong in this one." <<endl;
+                        }//if debugmode
+                        
 		}//for j
 	}//for i
 	
@@ -902,9 +939,21 @@ void RunZustand::RunDynamik::berechne_WCA22_debug(TimestepInfo &info){
                     double a_8 = 1.0/(a2*a2*a2*a2);
                     double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
                     
-                    //addiere Kraefte zu F_WCA[i]. Die 4 kommt aus dem Lennard-Jones-Potential, die 6 aus d/dr r^(-6)
-                    F2_WCA[i][0] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dx;
-                    F2_WCA[i][1] += eps22_11*sigma11_22*4.0*6.0*(2*a_14 - a_8)*dy;
+                    //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+                    double abs_F = eps22_11*sigma11_22 * 4.0*6.0*(2.0*a_14 - a_8);
+                    
+                    // if larger than allowed, set to max allowed value
+                    if(abs_F > maxPairWCA) 
+                        abs_F = maxPairWCA;
+                    
+                    //addiere Kraefte zu F_WCA[i]. 
+                    F2_WCA[i][0] += abs_F * dx;
+                    F2_WCA[i][1] += abs_F * dy;
+                    
+                    if(debugmode){
+                        if(F2_WCA[i][0] > 20*maxPairWCA || F2_WCA[i][1] > 20*maxPairWCA)
+                            cout << "Typ 2, i="<<i<<". The force is strong in this one." <<endl;
+                    }//if debugmode
                     
             }//for j
     }//for i
@@ -948,12 +997,14 @@ void RunZustand::RunDynamik::addiere_WCA12(){
 					x2 += L;
 				else if((dx+L)*(dx+L) < dx*dx)
 					x2 -= L;
+                                dx = x1-x2;
 				
 				//y-Richtung nahe am Rand?
 				if((dy-L)*(dy-L) < dy*dy)
 					y2 += L;
 				else if((dy+L)*(dy+L) < dy*dy)
 					y2 -= L;
+                                dy = y1-y2;
 				
 			}//if nahe am Rand
 			
@@ -965,12 +1016,33 @@ void RunZustand::RunDynamik::addiere_WCA12(){
 			// a hoch -8 und hoch -14
 			double a_8 = 1.0/(a2*a2*a2*a2);
 			double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
+                        
+                        //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+                        double abs_F = eps12_11*sigma11_12 * 4.0*6.0*(2.0*a_14 - a_8);
+                        
+                        // if larger than allowed, set to max allowed value
+                        if(abs_F > maxPairWCA) 
+                            abs_F = maxPairWCA;
+			
+			//addiere Kraefte zu F_WCA[i]. 
+			F1_WCA[i ][0] += abs_F * dx;
+			F1_WCA[i ][1] += abs_F * dy;
+                        F2_WCA[j2][0] -= abs_F * dx;
+                        F2_WCA[j2][1] -= abs_F * dy;
+                        
+                        if(debugmode){
+                            if(F1_WCA[i][0] > 20*maxPairWCA || F1_WCA[i][1] > 20*maxPairWCA)
+                                cout << "Typ 1, i="<<i<<". The force is strong in this one." << endl;
+                                
+                            if(F2_WCA[i][0] > 20*maxPairWCA || F2_WCA[i][1] > 20*maxPairWCA)
+                                cout << "Typ 2, i="<<i<<". The force is strong in this one." <<endl;
+                        }//if debugmode
 			
 			
-			F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
-			F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
-			F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
-			F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+// 			F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
+// 			F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+// 			F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
+// 			F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
 		}//for j durch die Nachbarliste
 	}//for i, Typ 1
 	
@@ -1011,12 +1083,14 @@ void RunZustand::RunDynamik::addiere_WCA12_debug(TimestepInfo &info){
                                     x2 += L;
                             else if((dx+L)*(dx+L) < dx*dx)
                                     x2 -= L;
+                            dx = x1-x2;
                             
                             //y-Richtung nahe am Rand?
                             if((dy-L)*(dy-L) < dy*dy)
                                     y2 += L;
                             else if((dy+L)*(dy+L) < dy*dy)
                                     y2 -= L;
+                            dy = y1-y2;
                             
                     }//if nahe am Rand
                     
@@ -1029,11 +1103,31 @@ void RunZustand::RunDynamik::addiere_WCA12_debug(TimestepInfo &info){
                     double a_8 = 1.0/(a2*a2*a2*a2);
                     double a_14= 1.0/(a2*a2*a2*a2*a2*a2*a2);
                     
+                    //absolute value of this pair-wise force. factor 4 in LJ potential, factor 6 from d/dr r^(-6)
+                    double abs_F = eps12_11*sigma11_12 * 4.0*6.0*(2.0*a_14 - a_8);
                     
-                    F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14 - a_8)*dx;
-                    F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
-                    F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
-                    F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+                    // if larger than allowed, set to max allowed value
+                    if(abs_F > maxPairWCA) 
+                        abs_F = maxPairWCA;
+                    
+                    //addiere Kraefte zu F_WCA[i]. 
+                    F1_WCA[i ][0] += abs_F * dx;
+                    F1_WCA[i ][1] += abs_F * dy;
+                    F2_WCA[j2][0] -= abs_F * dx;
+                    F2_WCA[j2][1] -= abs_F * dy;
+                    
+                    if(debugmode){
+                        if(F1_WCA[i][0] > 20*maxPairWCA || F1_WCA[i][1] > 20*maxPairWCA)
+                            cout << "Typ 1, i="<<i<<". The force is strong in this one." << endl;
+                            
+                        if(F2_WCA[i][0] > 20*maxPairWCA || F2_WCA[i][1] > 20*maxPairWCA)
+                            cout << "Typ 2, i="<<i<<". The force is strong in this one." <<endl;
+                    }//if debugmode
+                    
+//                     F1_WCA[i ][0] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
+//                     F1_WCA[i ][1] += eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
+//                     F2_WCA[j2][0] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dx;
+//                     F2_WCA[j2][1] -= eps12_11*sigma11_12* 4.0*6.0*(2*a_14-a_8)*dy;
             }//for j durch die Nachbarliste
     }//for i, Typ 1
     
@@ -1287,58 +1381,6 @@ void erwListe_rem(vector<int>& liste, int k){
 	liste.erase(i);
 }//void erwListe_rem
 
-/*
-//bestimme optimale Dauer des Zeitschritts, so dass max_reisedistanz eingehalten wird
-double optimaler_zeitschritt(double** F_WCA, double** Fkap, double** F_noise, double deltat, int NN){
-	if (0==NN) return deltat;
-	
-	double ret = deltat; //spaeter return-Wert, kann nur kleiner werden
-	
-	const double mrd = max_reisedistanz; //kuerzerer Name
-	
-	//Loesen quadratischer Gleichungen:
-	// Aus m < |Fdt + sqrt(2T dt)dn| erhaelt man
-	// Falls F==0: dt < m^2/(2T (dn^2))
-	// Falls F!=0: dt < (w-|u|)^2 mit u=dn*sqrt(2T)/(8F) und w=sqrt(u^2 + m/(4|F|))
-	
-	// hier:
-	// m = mrd
-	// F = F_WCA+Fkap
-	// dn = F_noise
-	// T=T und dt = ret
-	
-	
-	for(int teilchen=0; teilchen<NN; teilchen++){
-		
-		// x-Komponente
-		double F = F_WCA[teilchen][0] + Fkap[teilchen][0];
-		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
-			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][0]*F_noise[teilchen][0]));
-		else{
-			double u = F_noise[teilchen][0]*sqrt(0.5*T)/F;
-			double w = sqrt(u*u + mrd/fabs(F));
-			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
-		}//else F ungleich Null
-		
-		
-		
-		
-		// y-Komponente
-		F = F_WCA[teilchen][1] + Fkap[teilchen][1];
-		if(fabs(F) < 1.0e-5) //eigentlich F==0.0. Konstante 10^-5 auslagern oder durch was anderes ausdruecken, zB F << F_noise ?
-			ret = min(ret, mrd*mrd/(2.0*T*F_noise[teilchen][1]*F_noise[teilchen][1]));
-		else{
-			double u = F_noise[teilchen][1]*sqrt(0.5*T)/F;
-			double w = sqrt(u*u + mrd/fabs(F));
-			ret = min(ret, (w-fabs(u))*(w-fabs(u)));
-		}//else F ungleich Null
-		
-		
-		
-	}//for teilchen
-	return ret;
-}//double optimaler_zeitschritt 
-// */
 
 double RunZustand::RunDynamik::optimaler_zeitschritt(){
 	double ret = dt_max; //späterer Return-Wert, kann nur kleiner werden

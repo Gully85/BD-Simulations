@@ -47,7 +47,6 @@ datei2 = "pos2_1.txt"
 !mkdir animation10 animation3 animation1
 do for [stepsize in "10 3 1"]{ \
 do for [k=1:anzahl_frames-1:stepsize]{ \
-print k;\
 t_inTJ = k / frames_per_tJ ;\
 ti_str = sprintf("                                       t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
 set output "animation".stepsize. "/frame_". sprintf("%03.0f",k) . ".png"; \
@@ -62,8 +61,8 @@ plot datei1 using 2:3 every :::k::k ls 1, datei2 using 2:3 every :::k::k ls 2; \
 set size 0.5,0.5; set origin 0.5, 0.45; \
 set key top right ;\
 unset arrow 99; unset label 99; set grid y; set xtics 10 format ""; \
-set xr [0.0001: L/2]; set yr [-1:3]; set ytics; \
-plot "korrfunk_run1.txt" every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb "black" lw 3 ti "ratio in-species/mixed", "" every :::k::k using 2:(($3+$5 - 2*$4)*$2/64) ti 'difference in-species/mixed' lc rgb "#fdc086" lw 3;\
+set xr [0.0001: L/2]; set yr [-1:3]; set ytics 1; \
+plot "korrfunk_run1.txt" every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb "black" lw 3 ti "ratio in-species/mixed", "" every :::k::k using 2:(($3+$5 - 2*$4)*$2/64) ti 'difference in-species/mixed' lc rgb "#ff7f00" lw 3;\
 set size 0.5,0.5; set origin 0.5,0; set yr [0:5];\
 set xtics 10 format "%g"; set xlabel "r/{/Symbol s}";\
 plot "korrfunk_run1.txt" every :::k::k using 2:($3*$2/64) ls 1 ti "red-red", "" every :::k::k using 2:($5*$2/64) ls 2 ti "blue-blue", "" every :::k::k using 2:($4*$2/64) ls 3 ti "red-blue";\
