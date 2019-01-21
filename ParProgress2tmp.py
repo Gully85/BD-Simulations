@@ -64,5 +64,7 @@ with open("out.txt", "r") as fileO:
             progress = int(words[4])
 
 # write gathered information to file
+### TEMPORARY: WRITE 100 INSTEAD OF THE ACTUAL PROGRESS
 outfile = open("tmp", "w")
 outfile.write("{}\t{}\t{}\t{}".format(progress, L, lam, frames_per_tJ))
+#outfile.write("{}\t{}\t{}\t{}".format(100, L, lam, frames_per_tJ))

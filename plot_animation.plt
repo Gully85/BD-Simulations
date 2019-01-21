@@ -10,18 +10,25 @@ set ylabel 'y'
 set terminal unknown
 stats 'tmp' u (anzahl_frames=$1, L=$2, lam=$3, frames_per_tJ=$4):1 nooutput
 
-print anzahl_frames
-print L
-print lam
-print frames_per_tJ
+#print anzahl_frames
+#print L
+#print lam
+#print frames_per_tJ
 
-
+# double-ended arrow indicating lambda in the snapshot
 set style arrow 1 heads size 2,90 front lw 5
 
+# scale particle radius with box size
+particle_radius = 150./L
 
-set style line 1 lc rgb "#0060ad" pt 7 ps 1.5 lt 1 lw 2
-set style line 2 lc rgb "#ad3000" pt 7 ps 1.5 lt 1 lw 2
+# colloids (dots) in the snapshot
+set style line 1 lc rgb "#ad3000" pt 7 ps particle_radius lt 1 lw 2
+set style line 2 lc rgb "#0060ad" pt 7 ps particle_radius lt 1 lw 2
+
+# green line, inter-species g(r)
 set style line 3 lc rgb "#30a000" pt 7 ps 1.5 lt 1 lw 2
+
+# black line, ratio g11(r)/g12(r)
 set style line 4 lc rgb 'black'   pt 7 ps 1.5 lt 1 lw 2
 
 # set xlabel 'x/{/Symbol s}'
@@ -44,8 +51,9 @@ unset ytics
 datei1 = "pos1_1.txt"
 datei2 = "pos2_1.txt"
 
-!mkdir animation10 animation3 animation1
-do for [stepsize in "10 3 1"]{ \
+# !mkdir animation50 animation10 animation3 animation1
+do for [stepsize in "100 20 3"]{ \
+system "mkdir animation" . stepsize ;\
 do for [k=1:anzahl_frames-1:stepsize]{ \
 t_inTJ = k / frames_per_tJ ;\
 ti_str = sprintf("                                       t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
@@ -60,12 +68,12 @@ unset xlabel; unset xtics; unset ylabel; unset ytics; unset key; \
 plot datei1 using 2:3 every :::k::k ls 1, datei2 using 2:3 every :::k::k ls 2; \
 set size 0.5,0.5; set origin 0.5, 0.45; \
 set key top right ;\
-unset arrow 99; unset label 99; set grid y; set xtics 10 format ""; \
+unset arrow 99; unset label 99; set grid y; set xtics format ""; \
 set xr [0.0001: L/2]; set yr [-1:3]; set ytics 1; \
 plot "korrfunk_run1.txt" every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb "black" lw 3 ti "ratio in-species/mixed", "" every :::k::k using 2:(($3+$5 - 2*$4)*$2/64) ti 'difference in-species/mixed' lc rgb "#ff7f00" lw 3;\
 set size 0.5,0.5; set origin 0.5,0; set yr [0:5];\
-set xtics 10 format "%g"; set xlabel "r/{/Symbol s}";\
-plot "korrfunk_run1.txt" every :::k::k using 2:($3*$2/64) ls 1 ti "red-red", "" every :::k::k using 2:($5*$2/64) ls 2 ti "blue-blue", "" every :::k::k using 2:($4*$2/64) ls 3 ti "red-blue";\
+set xtics format "%g"; set xlabel "r/{/Symbol s}";\
+plot "korrfunk_run1.txt" every :::k::k using 2:3 ls 1 ps 1.5 ti "red-red", "" every :::k::k using 2:5 ls 2 ps 1.5 ti "blue-blue", "" every :::k::k using 2:4 ls 3 ti "red-blue";\
 unset multiplot
 }}
 

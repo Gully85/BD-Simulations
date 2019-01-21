@@ -89,10 +89,10 @@ const int jobs = 1;
 const int maxThreads = 1;
 
 //Observable aufnehmen in welchem Zeitabstand?
-const double obs_dt = 0.2; //eine Jeans-Zeit ist 0.1, so sind es 20 obs pro Jeanszeit
+const double obs_dt = 0.2; 
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 5000; //gesamt 20 Jeanszeiten
+const int obs_anzahl = 5000; 
 
 
 // Binbreite Paarkorrelationsfunktion
