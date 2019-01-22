@@ -57,11 +57,11 @@ int main(){
             for(int teilchen=0; teilchen<N1; teilchen++){
                 if(3 != fscanf(in1, "%g \t %g \t %g \n", &tmpt, &tmpx, &tmpy)){
                     cout << "Problem in pos1_1.txt: t=" <<t*obs_dt<< ", teilchen="<<teilchen << endl;
-                    return 1;
+                    return 0;
                 }
                 if(0.9*obs_dt*t > tmpt || 1.1*obs_dt*t < tmpt){
                     cout << "Problem in pos1_1.txt: t=" <<t*obs_dt<< ", teilchen="<<teilchen<< ", time is "<<tmpt<< " instead of expected "<<t*obs_dt<<endl;
-                    return 1;
+                    return 0;
                 }
                 
                 r1_abs[teilchen][0] = (double) tmpx;
@@ -71,11 +71,11 @@ int main(){
             for(int teilchen=0; teilchen<N2; teilchen++){
                 if(3 != fscanf(in2, "%g \t %g \t %g \n", &tmpt, &tmpx, &tmpy)){
                     cout << "Problem in pos2_1.txt: t=" <<t*obs_dt<< ", teilchen="<<teilchen << endl;
-                    return 1;
+                    return 0;
                 }
                 if(0.9*obs_dt*t > tmpt || 1.1*obs_dt*t < tmpt){
                     cout << "Problem in pos2_1.txt: t=" <<t*obs_dt<< ", teilchen="<<teilchen<< ", time is "<<tmpt<< " instead of expected "<<t*obs_dt<<endl;
-                    return 1;
+                    return 0;
                 }
                 
                 r2_abs[teilchen][0] = (double) tmpx;
