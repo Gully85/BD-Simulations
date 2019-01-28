@@ -169,7 +169,7 @@ const int rhoFFTW_bins = 0.5*FFT_samples*dq/dq_rhoFFTW;
 const double Omega = M_PI/densGrid_Breite;
 
 // Anzahl Bins Paarkorrelationsfunktion
-const int korr_bins = (int) (korr_rmax/korr_dr);
+const int korr_bins = (int) (korr_rmax/korr_dr)+1;
 
 //Breite dq für rhothilde
 const double ftrho_dq = 4.0*M_PI/L;
