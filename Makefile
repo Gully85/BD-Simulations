@@ -17,7 +17,7 @@ fullsim: $(FILES) main_auswertung.cpp parameter.h ParProgress2tmp.py plot_animat
 
 sim :  $(FILES)
 	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_NORMAL) -o BDkap
-	./BDkap
+	time ./BDkap
 
 simcorr: $(FILES) main_auswertung.cpp parameter.h
 	make sim

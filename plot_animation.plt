@@ -52,7 +52,7 @@ datei1 = "pos1_1.txt"
 datei2 = "pos2_1.txt"
 
 # !mkdir animation50 animation10 animation3 animation1
-do for [stepsize in "100 20 3"]{ \
+do for [stepsize in "100 30 10"]{ \
 system "mkdir animation" . stepsize ;\
 do for [k=1:anzahl_frames-1:stepsize]{ \
 t_inTJ = k / frames_per_tJ ;\
@@ -70,7 +70,7 @@ set size 0.5,0.5; set origin 0.5, 0.45; \
 set key top right ;\
 unset arrow 99; unset label 99; set grid y; set xtics format ""; \
 set xr [0.0001: L/2]; set yr [-1:3]; set ytics 1; \
-plot "korrfunk_run1.txt" every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb "black" lw 3 ti "ratio in-species/mixed", "" every :::k::k using 2:(($3+$5 - 2*$4)*$2/64) ti 'difference in-species/mixed' lc rgb "#ff7f00" lw 3;\
+plot "korrfunk_run1.txt" every :::k::k using 2:(($3+$5)/(2*$4)) lc rgb "black" lw 3 ti "ratio in-species/mixed", "" every :::k::k using 2:(($3+$5)/2 - $4) ti 'difference in-species/mixed' lc rgb "#ff7f00" lw 3;\
 set size 0.5,0.5; set origin 0.5,0; set yr [0:5];\
 set xtics format "%g"; set xlabel "r/{/Symbol s}";\
 plot "korrfunk_run1.txt" every :::k::k using 2:3 ls 1 ps 1.5 ti "red-red", "" every :::k::k using 2:5 ls 2 ps 1.5 ti "blue-blue", "" every :::k::k using 2:4 ls 3 ti "red-blue";\
