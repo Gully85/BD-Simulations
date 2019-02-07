@@ -17,7 +17,7 @@ fullsim: $(FILES) main_auswertung.cpp parameter.h ParProgress2tmp.py plot_animat
 
 sim :  $(FILES)
 	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_NORMAL) -o BDkap
-	time ./BDkap
+	time ./BDkap > out.txt
 
 simcorr: $(FILES) main_auswertung.cpp parameter.h
 	make sim
@@ -29,6 +29,7 @@ debug : $(FILES)
 
 corrfunc : main_auswertung.cpp parameter.h 
 	g++ main_auswertung.cpp -O3 -o auswertung_binary
+	mkdir -p localDens
 	./auswertung_binary
 
 snapshots: ParProgress2tmp.py plot_animation.plt parameter.h 

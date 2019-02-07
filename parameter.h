@@ -11,11 +11,11 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 6125; //darf nicht Null sein!
-const int N2 = 6125;
+const int N1 = 4500; //darf nicht Null sein!
+const int N2 = 4500;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
-const double L = 350.0; 
+const double L = 300.0; 
 
 // 0 fuer Nearest Grid Point, 1 fuer Cloud In Cell, 2 fuer Triangular Shaped Cloud
 const int densGrid_Schema = 2; 
@@ -32,7 +32,7 @@ const double kapillar_vorfaktor = 1.111111111; //0.89 ist V0/kT im EPJE-Paper. E
 
 
 // Temperatur, in Einheiten kT/eps
-const double T = 121.527777777;
+const double T = 24.3055555;
 
 
 // maximaler Zeitschritt
@@ -101,6 +101,24 @@ const double korr_dr = 0.2;
 // größtes r der Paarkorrelationsfunktion
 const double korr_rmax = L*0.5;
 
+// in Histogram of local densities: number of bins and width of a bin
+const int rhohist_bins = 100;
+const double rhohist_drho = 0.01;
+// bin assignment in rhohist:  x = rhohist_drho*(bin+0.5)
+// bin assignment in drhohist: x = rhohist_drho*(bin+0.5-rhohist_bins/2)
+// solved for bin: in rhohist bin=(int)(x/rhohist_drho - 0.5)
+// and in drhohist:           bin=(int)(x/rhohist_drho - 0.5 + rhohist_bin/2)
+
+// thresholds for rhohist. When a cell has more than X density, it is counted.
+const double rho_thresh1 = 0.1;
+const double rho_thresh2 = 0.2;
+const double rho_thresh3 = 0.5;
+// same for drhohist. When in a cell |rho1-rho2|/(rho1+rho2) > X, it is counted.
+const double drho_thresh1= 0.1;
+const double drho_thresh2= 0.2;
+const double drho_thresh3= 0.5;
+const double drho_thresh4= 0.99;
+
 
 // Binbreite Dichteprofil
 const double rhoring_dr = 0.5;
@@ -134,12 +152,20 @@ const bool auswerten_rhoFT_normjerun=false; //nur falls auswerten_rhoviaFFTW ges
 const bool auswerten_animation = true; //schreibt im ersten Durchgang Schnappschüsse in Dateien pos1.txt und pos2.txt
 const bool auswerten_abstand = false; //Mittelwert des Abstands Typ2-Teilchen von der Boxmitte
 
+// snapshot-grid: Crude value of lattice constant. The actual lattice constant will be chosen 
+// close to this value such that L is a multiple of this. In units of sigma11
+const double snapgrid_crude = 5.0;
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
 
 
 // die Konstante 2^(1/6)
 const double zweihoch1_6 = pow(2.0, 1.0/6.0);
+
+// snapshot-grid: number of lattice cells (per dimension)
+const int snapgrid_num = (int) (L/snapgrid_crude + 0.5);
+//snapshot-grid: size of each lattice cell
+const double snapgrid_width = L / snapgrid_num;
 
 // Anzahl Zellen beim Nachbarlisting
 const int nachList_Zellen = (int) floor(L/zweihoch1_6);
