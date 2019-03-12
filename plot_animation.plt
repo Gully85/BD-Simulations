@@ -10,6 +10,9 @@ set ylabel 'y'
 set terminal unknown
 stats 'tmp' u (anzahl_frames=$1, L=$2, lam=$3, frames_per_tJ=$4):1 nooutput
 
+## TEMP
+#anzahl_frames = 10
+
 #print anzahl_frames
 #print L
 #print lam
@@ -31,17 +34,32 @@ set style line 3 lc rgb "#30a000" pt 7 ps 1.5 lt 1 lw 2
 # black line, ratio g11(r)/g12(r)
 set style line 4 lc rgb 'black'   pt 7 ps 1.5 lt 1 lw 2
 
+# violet line for rho1+rho2
+set style line 11 lc rgb "dark-violet" lt 1 lw 2
+
+# light-orange line for rho1-rho2
+set style line 12 lc rgb "#fdbf6f" lt 1 lw 2
+
+# red line for species 1
+set style line 13 lc rgb "#d53e4f" lt 1 lw 2
+
+# blue line for species 2
+set style line 14 lc rgb "#3288bd" lt 1 lw 2
+
+
 # set xlabel 'x/{/Symbol s}'
 # set ylabel 'y/{/Symbol s}'
 
 unset xlabel
 unset ylabel
 
+# principial max packing for 2dim hard disks. Only used in axis range/labels of histograms, not in the coloring procedure
+rhomax = 2./sqrt(3.)
 
 # density: invisible for rho1+rho2=0, full opacity for rho1+rho2 > maxdens*rho0
 # color: #d53e4f for (rho1-rho2)/(rho1+rho2) < -maxdemix, #3288bd for (rho1-rho2)/(rho1+rho2) > maxdemix
 maxdemix = 1.0
-rho0 = 0.1
+rho0 = 0.01
 # which ranges of rho are expected? e.g. rhorange=5 means a range from rho0/5 to rho0*5. Must be greater than 1.
 rhorange = 2
 
@@ -76,7 +94,7 @@ ba(rho1,rho2) = b(rho1,rho2) + (255-a(rho1,rho2))/255.*(255-b(rho1,rho2))
 
 
 
-set term png font ",28" size 2000,1000
+set term pngcairo font ",28" size 2000,1000
 
 set xrange [0:L]
 set yrange [0:L]
@@ -87,33 +105,75 @@ unset ytics
 datei1 = "pos1_1.txt"
 datei2 = "pos2_1.txt"
 
-do for [stepsize in "200 100"]{ \
+do for [stepsize in "100 30 5 1"]{ \
 system "mkdir -p animation" . stepsize ;\
 do for [k=1:anzahl_frames-1:stepsize]{ \
 t_inTJ = k / frames_per_tJ ;\
-ti_str = sprintf("                                       t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
+t_str = sprintf("t = %f t_J (%d/%d)", t_inTJ,k,anzahl_frames) ;\
 set output "animation".stepsize. "/frame_". sprintf("%03.0f",k) . ".png"; \
-set multiplot title ti_str;\
-set origin 0,0; set size 0.5,1; \
+set multiplot; \
+set label 84 t_str at graph 0.3,1.05 front; \
+set origin 0,0; set size 0.48,0.96; \
 set arrow 99 from L/10,L/2 to L/10+lam,L/2 arrowstyle 1 ;\
-set label 99 at L/10+lam/2,L*0.52 "{/Symbol l}" font ",40" ;\
+set label 99 at L/10+lam/2,L*0.52 "{/Symbol l}" font ",40" front ;\
 unset grid;\
 set xr [0:L]; set yr [0:L] ;\
 unset xlabel; unset xtics; unset ylabel; unset ytics; unset key; \
 plot "localDens/rho".k.".txt" using 2:3:(ra($4,$5)):(ga($4,$5)):(ba($4,$5)) with rgbimage; \
-set size 0.25,0.5; set origin 0.5, 0.45; \
-unset key ;\
-unset arrow 99; unset label 99; set grid y; set xtics format ""; \
-set xr [*:*]; set yr [*:*]; unset ytics; set xtics format "%g" font ",12"; \
-plot "rhoHist.txt" every :::k::k using 2:3 w boxes ;\
-set size 0.25,0.5; set origin 0.75,0.45; \
-plot "drhoHist.txt" every :::k::k using 2:3 w boxes;\
-set size 0.5,0.5; set origin 0.5,0; set yr [0:5];\
-set key top right ;\
-set xtics format "%g"; set xlabel "r/{/Symbol s}";\
-plot "korrfunk_run1.txt" every :::k::k using 2:3 ls 1 ps 1.5 ti "red-red", "" every :::k::k using 2:5 ls 2 ps 1.5 ti "blue-blue", "" every :::k::k using 2:4 ls 3 ti "red-blue";\
+unset arrow 99; unset label 99; unset label 84; \
+set size 0.16,0.33; set origin 0.45, 0 ;\
+set xr [0:rhomax]; set yr [0: 0.05]; set xtics ("0" 0, "{/Symbol r}_{max}" rhomax, "" 0.5*rhomax) font ",12" offset 0,0.5 nomirror; unset ytics; \
+plot "rhoHist.txt" every :::k::k u 2:3 w filledcurves y=0 lc rgb "#d53e4f" ;\
+set origin 0.57,0; \
+plot "rhoHist.txt" every :::k::k u 2:4 w filledcurves y=0 lc rgb "#3288bd" ;\
+set origin 0.68,0;\
+plot "rhoHist.txt" every :::k::k u 2:5 w filledcurves y=0 lc rgb "dark-violet" ;\
+set origin 0.8,0;\
+set xr [-1:1]; set xtics ("blue" -1, "1:1" 0, "red" 1); \
+set label 87 "histogram\nof local\ndensities" font ",14" at graph 1.05,0.5; \
+plot "drhoHist.txt" every :::k::k using 2:3 w filledcurves y=0 lc rgb "#fdbf6f";\
+unset label 87
+set origin 0.45,0.3; set size 0.28,0.33;\
+set xr [*:*]; set yr [*:*]; set xtics autofreq; set ytics autofreq font ",15"; \
+plot "rhok_iso/t".k.".txt" u 1:4 w l ls 13, "" u 1:5 w l ls 14 ;\
+unset ytics; \
+set origin 0.68,0.3 ; set size 0.28,0.33; \
+set label 87 "{/Symbol r}({/Symbol s}k)" at graph 1.05,0.5; \
+plot "rhok_iso/t".k.".txt" u 1:2 w l ls 11, "" u 1:3 w l ls 12 ;\
+unset label 87; \
+set origin 0.43,0.55; set size 0.3,0.35 ;\
+set xr [0:L/2]; set xtics format "%g" font ",12"; set yr [-1:5]; set ytics autofreq format "%g" font ",15"; \
+set label 84 "red"  tc rgb "#d53e4f" at graph 0.2,1.13 front; \
+set label 85 "and"  tc rgb "black"   at graph 0.4,1.13 front; \
+set label 86 "blue" tc rgb "#3288bd" at graph 0.6,1.13 front; \
+plot "korrfunk_run1.txt" every :::k::k using 2:3 ls 13, "" every :::k::k using 2:5 ls 14;\
+set origin 0.68,0.55; set size 0.28,0.35 ;\
+set ytics format "";\
+set label 84 "sum"  tc rgb "dark-violet" at graph 0.2,1.13 front; \
+set label 85 "and"  tc rgb "black"       at graph 0.4,1.13 front; \
+set label 86 "diff" tc rgb "#fdbf6f"     at graph 0.6,1.13 front; \
+set label 87 "g(r/{/Symbol s})" at graph 1.05,0.5;\
+plot "korrfunk_run1.txt" every :::k::k using 2:(0.25*($3+$5+2*$4)) ls 11, "" every :::k::k using 2:(0.25*($3+$5-2*$4)) ls 12;
+unset label 84; unset label 85; unset label 86; unset label 87;\
 unset multiplot
 }}
+
+
+
+#set size 0.25,0.5; set origin 0.5, 0.45; \
+#unset key ;\
+#unset arrow 99; unset label 99; set grid y; set xtics format ""; \
+#set xr [*:*]; set yr [0:0.05]; set ytics format "%g" font ",15"; set xtics format "%g" font ",15"; \
+#plot "rhoHist.txt" every :::k::k using 2:3 w boxes ;\
+#set size 0.25,0.5; set origin 0.75,0.45; \
+#set ytics format "";\
+#plot "drhoHist.txt" every :::k::k using 2:3 w boxes;\
+#set size 0.5,0.5; set origin 0.5,0; set yr [0:5];\
+#set key top right ;\
+#set xtics format "%g"; set xlabel "r/{/Symbol s}";\
+#plot "korrfunk_run1.txt" every :::k::k using 2:3 ls 1 ps 1.5 ti "red-red", "" every :::k::k using 2:5 ls 2 ps 1.5 ti "blue-blue", "" every :::k::k using 2:4 ls 3 ti "red-blue";\
+
+
 
 # old plot command with dots (particles) AND densities.
 # plot "localDens/rho".k.".txt" using 2:3:(ra($4,$5)):(ga($4,$5)):(ba($4,$5)) with rgbimage, datei1 using 2:3 every :::k::k ls 1, datei2 using 2:3 every :::k::k ls 2; \

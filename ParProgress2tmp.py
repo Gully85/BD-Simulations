@@ -10,7 +10,7 @@ import numpy as np
 
 
 # initialize variables to -1, so we can check whether all were found
-L,obs_dt,N1,N2,f2_epsgam = -1,-1,-1,-1,-1
+L,obs_dt,N1,N2,f2_epsgam,snapgrid_num = -1,-1,-1,-1,-1,-1
 
 with open("parameter.h" ,"r") as fileP:
     for linenr,line in enumerate(fileP):
@@ -37,11 +37,14 @@ with open("parameter.h" ,"r") as fileP:
                 N2 = int(val)
             elif "kapillar_vorfaktor" == var:
                 f2_epsgam = float(val)
+            elif "snapgrid_crude" == var:
+                snapgrid_crude = float(val)
+                snapgrid_num = 2*(int) (L/(2*snapgrid_crude) + 0.5)
 
-    if any(np.array([L,obs_dt,N1,N2,f2_epsgam]) < 0.0):
+    if any(np.array([L,obs_dt,N1,N2,f2_epsgam,snapgrid_num]) < 0.0):
         raise ValueError("at least one of the needed variables wasn't found \n"
-                         "in parameter.h. N1={}, N2={}, L={}, lam={}, obs_dt={}, kap_vorfaktor={}".format(
-                         N1,N2,L,lam,obs_dt,f2_epsgam))
+                         "in parameter.h. N1={}, N2={}, L={}, lam={}, obs_dt={}, kap_vorfaktor={}, snapgrid_num={}".format(
+                         N1,N2,L,lam,obs_dt,f2_epsgam,snapgrid_num))
 
 # if this point is reached, reading from parameter.h was successful.
 rho = (N1+N2)/(L*L)
@@ -66,5 +69,5 @@ with open("out.txt", "r") as fileO:
 # write gathered information to file
 ### TEMPORARY: WRITE 100 INSTEAD OF THE ACTUAL PROGRESS
 outfile = open("tmp", "w")
-outfile.write("{}\t{}\t{}\t{}".format(progress, L, lam, frames_per_tJ))
-#outfile.write("{}\t{}\t{}\t{}".format(200, L, lam, frames_per_tJ))
+outfile.write("{}\t{}\t{}\t{}\t{}".format(progress, L, lam, frames_per_tJ,snapgrid_num))
+#outfile.write("{}\t{}\t{}\t{}\t{}".format(200, L, lam, frames_per_tJ,snapgrid_num))

@@ -62,7 +62,7 @@ int main(){
         
         //histogram over local density and local deltarho is written to these files
         FILE* rhoHistFile = fopen("rhoHist.txt", "w");
-        fprintf(rhoHistFile, "# Format: t TAB rho1+rho2 TAB fraction of space with this rho1+rho2\n\n");
+        fprintf(rhoHistFile, "# Format: t TAB dens TAB fraction of space with <rho1 TAB rho2 TAB rho1+rho2> = dens \n\n");
         FILE* drhoHistFile= fopen("drhoHist.txt","w");
         fprintf(drhoHistFile,"# Format: t TAB rho1-rho2 TAB fraction of space with this rho1-rho2\n\n");
         
@@ -76,8 +76,10 @@ int main(){
         fprintf(drhoThreshFile,"# where thresh1=%g, thresh2=%g, thresh3=%g, thresh4=%g\n\n", drho_thresh1, drho_thresh2, drho_thresh3, drho_thresh4);
         
         
-        // vector<double> to hold the rho-histogram and drho-histogram
+        // vector<double> to hold the rho-histograms and drho-histogram
         int rhoHist[rhohist_bins];
+        int rho1Hist[rhohist_bins];
+        int rho2Hist[rhohist_bins];
         int drhoHist[rhohist_bins];
         // bin assignment in rhohist:  x = rhohist_drho*(bin+0.5)
         // bin assignment in drhohist: x = rhohist_drho*(bin+0.5-rhohist_bins/2)
@@ -329,6 +331,8 @@ int main(){
                 int bin;
                 for(i=0; i<rhohist_bins; i++){
                     rhoHist [i]=0;
+                    rho1Hist[i]=0;
+                    rho2Hist[i]=0;
                     drhoHist[i]=0;
                 }
                 int rho_overthresh1 = 0;
@@ -358,6 +362,16 @@ int main(){
                     if (bin >= rhohist_bins) bin=rhohist_bins-1;
                     rhoHist[bin]++;
                     
+                    bin = (int) (rho1/rhohist_drho- 0.5);
+                    if (0>bin) bin=0;
+                    if (bin >= rhohist_bins) bin=rhohist_bins-1;
+                    rho1Hist[bin]++;
+                    
+                    bin = (int) (rho2/rhohist_drho- 0.5);
+                    if (0>bin) bin=0;
+                    if (bin >= rhohist_bins) bin=rhohist_bins-1;
+                    rho2Hist[bin]++;
+                    
                     bin = (int)(drho/rhohist_drho - 0.5 + rhohist_bins/2);
                     if (0>bin) bin=0;
                     if (bin >= rhohist_bins) bin=rhohist_bins-1;
@@ -368,7 +382,7 @@ int main(){
                 fprintf(drhoThreshFile,"%g \t %g \t %g \t %g \t %g \n", t*obs_dt,drho_overthresh1*prefactor,drho_overthresh2*prefactor,drho_overthresh3*prefactor,drho_overthresh4*prefactor);
                 
                 for(bin=0; bin<rhohist_bins; bin++){
-                    fprintf(rhoHistFile, "%g \t %g \t %g \n", t*obs_dt, rhohist_drho*(bin+0.5), prefactor*rhoHist[bin]);
+                    fprintf(rhoHistFile, "%g \t %g \t %g \t %g \t %g \n", t*obs_dt, rhohist_drho*(bin+0.5), prefactor*rho1Hist[bin], prefactor*rho2Hist[bin], prefactor*rhoHist[bin]);
                     fprintf(drhoHistFile, "%g \t %g \t %g \n", t*obs_dt, rhohist_drho*(bin+0.5-rhohist_bins/2), prefactor*drhoHist[bin]);
                 }//for bin
                 fprintf(rhoHistFile, "\n");
