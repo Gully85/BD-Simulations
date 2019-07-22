@@ -176,6 +176,16 @@ public:
 		int** r2_git;
 		double** r1_rel;
 		double** r2_rel;
+                
+                // special getter for the Krafttest: Gets y-component of capillary force on particle
+                // species 1, particle index 1.
+                double getFKap(){
+                    return F1kap[1][1];
+                }
+                // same for capillary force + WCA force
+                double getF(){
+                    return F1kap[1][1] + F1_WCA[1][1];
+                }
 		
 	private:
 		
@@ -407,7 +417,9 @@ private:
         
         // initialisiert alle Teilchenpositionen. Typ 1 (nur ein Teilchen) in Mitte der Box, Typ 2 kreisförmig um Mitte
         void init_kernundring();
-	
+        
+        // initialisiert nur Typ 1 die Teilchen Nr 0 und 1. 0 in der Mitte der ersten Nachbarlisten-Zelle, 1 leicht rechts davon.
+        void init_posKrafttest();
 
 	//berechnet das Quadrat des Abstands zwischen Teilchen i(Typ 1) und Teilchen j(Typ 1). Berücksichtigt periodische Randbedingungen.
 	double abstand2_11(int i, int j);

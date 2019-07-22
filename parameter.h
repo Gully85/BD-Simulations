@@ -11,8 +11,8 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 4500; //darf nicht Null sein!
-const int N2 = 4500;
+const int N1 = 2; //darf nicht Null sein!
+const int N2 = 0;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 300.0; 
@@ -67,11 +67,13 @@ const bool noWCA = false;
 //keine Zufallskräfte, dh keine Diffusion
 const bool noRNG = false;
 //FFTW nicht so aufwändig initialisieren
-const bool quickInit = false;
+const bool quickInit = true;
 //Bewegung der Teilchen einschränken: Nur radial, Winkel zur x-Achse nach jedem Zeitschritt korrigieren
 const bool restrictRadial = false;
 //macht nur wenige Zeitschritte, schreibt zusätzliche Infos, vor allem über Kraftberechnung
 const bool debugmode = false;
+//macht keine Zeitschritte. Zwei Teilchen, werden auf Positionen gesetzt und Kraft ausgerechnet. Es muss N1=2, N2=0 sein.
+const bool krafttestmode = true;
 
 // softening WCA interaction: no two-particle-force can be larger than this
 const double maxPairWCA = 1.0e5;
@@ -131,8 +133,8 @@ const int rhoring_bins = 500;
 const int ftrho_qbins = 30;
 
 
-// Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5, Kern+Ring=6
-const int startpos_methode=1;
+// Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5, Kern+Ring=6, Krafttest=7
+const int startpos_methode=7;
 //falls aus Datei: Name der Datei
 const string startpos_dateiname="startpos.txt";
 //falls Kreisscheibe oder Kern+Ring: Radius des Kreisss

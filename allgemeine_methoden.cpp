@@ -292,8 +292,11 @@ void RunZustand::init(int nr){
                 case 6:
                         init_kernundring();
                         break;
+                case 7:
+                        init_posKrafttest();
+                        break;
 		default:
-			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5,6" << endl;
+			cout << "Fehler: startpos_methode="<<startpos_methode<<", erlaubt sind 1,2,3,4,5,6,7" << endl;
 			return;
 	}//switch startpos_methode
 	

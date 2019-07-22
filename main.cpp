@@ -12,9 +12,6 @@
 #include <ctime>
 
 
-//#include "auswertung.cpp"
-//#include "positionen_speichernladen.cpp"
-
 
 using std::cout; using std::endl; using std::flush; using std::vector; using std::min; using std::string;
 
@@ -49,6 +46,7 @@ extern const bool auswerten_rhoviaFFTW;
 extern const bool auswerten_rhoFT_normjerun;
 extern const bool auswerten_animation;
 extern const bool debugmode;
+extern const bool krafttestmode;
 
 extern const double max_reisedistanz;
 
@@ -217,6 +215,36 @@ for(int run=0; run<runs; run++){
             return 0;
             
         }
+        
+        if(krafttestmode){
+            
+            // nur Typ 1 benutzt: r2_git und r2_rel nichtmal initialisiert.
+            // Teilchen mit Index 0 sitzt auf Position (0.5*densGrid_Breite, 0.5*densGrid_Breite), 
+            // also genau in der Mitte einer Zelle. Teilchen mit Index 1 wird in der Nähe platziert 
+            // (y-Koordinate größer, Abstand ist Schleifenvariable t), Kraft berechnen, Kraft lesen 
+            // und in Datei schreiben.
+            
+            FILE* outfile = fopen("kapkraft.txt", "w");
+            fprintf(outfile, "#Format: r Fkap Ftotal\n\n");
+            
+            for(double t=0.001; t<5.0; t+=0.01){
+                const double origin = theRun.r1_git[0][0]*nachList_Breite + theRun.r1_rel[0][0];
+                
+                double y = origin + t;
+                theRun.r1_git[1][1] = (int) (y/nachList_Breite);
+                theRun.r1_rel[1][1] = y - theRun.r1_git[1][1]*nachList_Breite;
+                
+                theRun.dyn.berechne_kapkraefte();
+                theRun.dyn.berechne_WCA11();
+                
+                double cap = theRun.dyn.getFKap();
+                double tot = theRun.dyn.getF();
+                //cout << "Kapkraft bei Abstand "<<t<<": " << theRun.dyn.getFKap() << endl;
+                //cout << "Gesamtkraft bei Abstand "<<t<<": " << theRun.dyn.getF() << endl << endl;
+                fprintf(outfile, "%g \t %g \t %g \n", t, cap, tot);
+            }//for t
+            return 0;
+        }//if krafttest
         
 	cout << "Run " << run << ": initial positions written, starting timesteps." << endl;
         time_t last_write = time(0);

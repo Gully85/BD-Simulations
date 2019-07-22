@@ -1791,3 +1791,26 @@ void RunZustand::init_kernundring(){
     
     
 }//void init_kreisundring
+
+void RunZustand::init_posKrafttest(){
+    // Es sollte N1=2, N2=0 sein. Setzt Teilchen 1 in die Mitte der ersten densGrid-Zelle, Teilchen 2 leicht rechts davon.
+    if(0 != N2 || 2 != N1){
+        cout << "Fehler: Initialisierung für Krafttest gefordert, aber N1="<<N1<<" und N2="<<N2<<". Es sollte 2,0 sein." << endl;
+        return;
+    }//if
+    
+    double x = 0.5*densGrid_Breite;
+    double y = 0.5*densGrid_Breite;
+    r1_git[0][0] = (int)(x/nachList_Breite);
+    r1_rel[0][0] = x - r1_git[0][0]*nachList_Breite;
+    r1_git[0][1] = (int)(y/nachList_Breite);
+    r1_rel[0][1] = y - r1_git[0][1]*nachList_Breite;
+    
+    //x-coordinate equal, y-coordinate slightly higher
+    r1_git[1][0] = r1_git[0][0];
+    r1_rel[1][0] = r1_rel[0][0];
+    y = 0.55*densGrid_Breite;
+    r1_git[1][1] = (int)(y/nachList_Breite);
+    r1_rel[1][1] = y - r1_git[1][1]*nachList_Breite;
+    
+}//void init_posKrafttest
