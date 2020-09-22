@@ -11,8 +11,8 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 2; //darf nicht Null sein!
-const int N2 = 0;
+const int N1 = 1000; //darf nicht Null sein!
+const int N2 = 1000;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 300.0; 
@@ -73,7 +73,7 @@ const bool restrictRadial = false;
 //macht nur wenige Zeitschritte, schreibt zusätzliche Infos, vor allem über Kraftberechnung
 const bool debugmode = false;
 //macht keine Zeitschritte. Zwei Teilchen, werden auf Positionen gesetzt und Kraft ausgerechnet. Es muss N1=2, N2=0 sein.
-const bool krafttestmode = true;
+const bool krafttestmode = false;
 
 // softening WCA interaction: no two-particle-force can be larger than this
 const double maxPairWCA = 1.0e5;
@@ -94,7 +94,7 @@ const int maxThreads = 1;
 const double obs_dt = 0.2; 
 
 // Obervable aufnehmen wie oft?
-const int obs_anzahl = 5000; 
+const int obs_anzahl = 12; 
 
 
 // Binbreite Paarkorrelationsfunktion
@@ -134,7 +134,7 @@ const int ftrho_qbins = 30;
 
 
 // Start: Zufall=1, aus Datei=2, Gitterstart=3, allegleich=4, Kreisscheibe=5, Kern+Ring=6, Krafttest=7
-const int startpos_methode=7;
+const int startpos_methode=1;
 //falls aus Datei: Name der Datei
 const string startpos_dateiname="startpos.txt";
 //falls Kreisscheibe oder Kern+Ring: Radius des Kreisss
@@ -156,7 +156,11 @@ const bool auswerten_abstand = false; //Mittelwert des Abstands Typ2-Teilchen vo
 
 // snapshot-grid: Crude value of lattice constant. The actual lattice constant will be chosen 
 // close to this value such that L is a multiple of this. In units of sigma11
-const double snapgrid_crude = 5.0;
+const double snapgrid_crude = 2.0;
+
+// for rhok test: Width of the gaussian distribution that write_gaussdens should produce
+const double gaussdens_width_x = 0.1*L;
+const double gaussdens_width_y = 0.02*L;
 
 /////////////// AB HIER: AENDERN VERBOTEN! /////////////////////////
 

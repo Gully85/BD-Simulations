@@ -1,5 +1,5 @@
 # Variablen
-FLAGS_IMMER = -I$$FFTW_INC_DIR -L$$FFTW_LIB_DIR -lfftw3 -lm -std=c++0x -fopenmp 
+FLAGS_IMMER = -I$$FFTW_INC_DIR -L$$FFTW_LIB_DIR -lfftw3 -lm -std=c++0x -fopenmp -Wno-div-by-zero
 FLAGS_DEBUG = -O0 -g
 FLAGS_NORMAL = -O3
 
@@ -22,18 +22,20 @@ sim :  $(FILES)
 obs : main_auswertung.cpp parameter.h tmp
 	g++ main_auswertung.cpp -O3 -o auswertung_binary
 	mkdir -p localDens
-	time ./auswertung_binary
+	./auswertung_binary
 	mkdir -p rhok_iso
-	time python3 calc_rhoIso.py
+	python3 calc_rhoIso.py
 
-snapshots: ParProgress2tmp.py plot_animation.plt parameter.h tmp
+snapshots: plot_animation.plt tmp
 	gnuplot plot_animation.plt 
 
 	
-auswertung: main_auswertung.cpp parameter.h ParProgress2tmp.py plot_animation.plt
+auswertung: main_auswertung.cpp parameter.h ParProgress2tmp.py plot_animation.plt rhokt_multifit.py
 	make obs
 	echo "Calculation of g(r) complete. Rendering snapshots..."
 	make snapshots
+	echo "Rendering of snapshots complete. Fitting exponential to all rho(k)"
+	python rhok_multifit.py
 
 
 simobs: $(FILES) main_auswertung.cpp parameter.h
@@ -44,10 +46,34 @@ simobs: $(FILES) main_auswertung.cpp parameter.h
 tmp: ParProgress2tmp.py parameter.h
 	python3 ParProgress2tmp.py
 
+# Test of the procedure that calculates rho(k), without time dependence. Tests are a perfect gaussian function, and
+# particle coordinates that follow a gaussian distribution. In both cases, x-width and y-width of the gaussian can be different, 
+# controlled by gaussdens_width_x and _y in parameter.h
+# write_gaussdens.cpp will write 
+# - a perfect gaussian density profile (with two diferent widths in x- and y-direction) to file localDens/test_noiseless.txt
+# - particle coordinates, same probability distribution, centered at (L/2,L/2) to files pos1_1.txt and pos2_1.txt
+# make obs will then apply gridding to the positions, writing results to file localDens/rho1.txt
+# Result of noiseless test in rhok_testresult_noiseless.png,
+# result of test with particle positions in rhok_testresult.png
+# For this, the variable obs_anzahl in parameter.h should be 2
+rhoktest: parameter.h write_gaussdens.cpp zufall.cpp tmp plot_FTcheck.plt FTcheck_noiseless.plt
+	g++ write_gaussdens.cpp zufall.cpp -O3 -o write_gaussdens -std=c++0x
+	./write_gaussdens
+	make obs
+	gnuplot plot_FTcheck.plt
+	gnuplot FTcheck_noiseless.plt
+	
+# Test of the procedure that calculates the time evolution of rho(k) for all k.
+# Set obs_anzahl in parameter.h to around 10..15 
+rhokttest: parameter.h $(FILES) main_auswertung.cpp calc_rhot_multik.py
+	make sim
+	make obs
+	mkdir -p rhok_timeEv
+	python3 rhokt_fit_test.py
+	
+
 
 ### These are old and probably not working anymore.
-profile: $(FILES_PROFILE)
-	g++ $(FILES_PROFILE) $(FLAGS_IMMER) $(FLAGS_NORMAL) -pg -o BDprofile
 
 auswertung_debug: $(FILES_AUSWERTUNG)
 	g++ $(FILES_AUSWERTUNG) $(FLAGS_IMMER) $(FLAGS_DEBUG) -o auswertung
@@ -58,3 +84,4 @@ animation_graphen:
 
 debug : $(FILES)
 	g++ $(FILES) $(FLAGS_IMMER) $(FLAGS_DEBUG) -o debug
+

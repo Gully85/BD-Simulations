@@ -136,7 +136,7 @@ for(int run=0; run<runs; run++){
 	theRun.ausgabe_jeansgroessen();
 	//main_init();
 	theRun.init(run);
-	
+	theRun.obs_point(0); //initial positions
 	
 	cout << "Run nr " << run << ": init complete after " << time(NULL)-program_started_time <<" seconds." << endl;
     }

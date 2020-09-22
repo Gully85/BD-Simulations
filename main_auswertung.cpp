@@ -96,7 +96,7 @@ int main(){
         FILE* snapgridfile;
         std::stringstream ss;
         
-	for(int t=1; t<obs_anzahl; t++){
+	for(int t=0; t<obs_anzahl; t++){
             //cout << "reading t=" << t*obs_dt << endl;
             
             ///// READ ALL PARTICLE POSITIONS

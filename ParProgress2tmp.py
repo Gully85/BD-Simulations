@@ -4,13 +4,16 @@ file parameter.h and progress from file out.txt
 Writes everything the gnuplot-file plot_animation.plt needs 
 to file tmp. The file is not commented or anything and should 
 be deleted by the Makefile afterwards.
+
+Also writes variables of the "test-density" gaussian 
+distribution to file tmp_denstest
 """
 
 import numpy as np
 
 
 # initialize variables to -1, so we can check whether all were found
-L,obs_dt,N1,N2,f2_epsgam,snapgrid_num = -1,-1,-1,-1,-1,-1
+L,obs_dt,N1,N2,f2_epsgam,snapgrid_num,gaussdens_width_x,gaussdens_width_y,T = -1,-1,-1,-1,-1,-1,-1,-1,-1
 
 with open("parameter.h" ,"r") as fileP:
     for linenr,line in enumerate(fileP):
@@ -39,12 +42,19 @@ with open("parameter.h" ,"r") as fileP:
                 f2_epsgam = float(val)
             elif "snapgrid_crude" == var:
                 snapgrid_crude = float(val)
-                snapgrid_num = 2*(int) (L/(2*snapgrid_crude) + 0.5)
+                snapgrid_num = (int) (L/snapgrid_crude + 0.5)
+            elif "gaussdens_width_x" == var:
+                val_ohne_L = val.split("*")[0]
+                gaussdens_width_x = float(val_ohne_L) * L
+            elif "gaussdens_width_y" == var:
+                val_ohne_L = val.split("*")[0]
+                gaussdens_width_y = float(val_ohne_L) * L
+            elif "T" == var:
+                T = float(val)
 
-    if any(np.array([L,obs_dt,N1,N2,f2_epsgam,snapgrid_num]) < 0.0):
-        raise ValueError("at least one of the needed variables wasn't found \n"
-                         "in parameter.h. N1={}, N2={}, L={}, lam={}, obs_dt={}, kap_vorfaktor={}, snapgrid_num={}".format(
-                         N1,N2,L,lam,obs_dt,f2_epsgam,snapgrid_num))
+if any(np.array([L,obs_dt,N1,N2,f2_epsgam,snapgrid_num, T]) < 0.0):
+    raise ValueError("at least one of the needed variables wasn't found \n"
+                         "in parameter.h. N1={}, N2={}, L={}, lam={}, obs_dt={}, kap_vorfaktor={}, snapgrid_num={}, T={}".format(N1,N2,L,lam,obs_dt,f2_epsgam,snapgrid_num,T))
 
 # if this point is reached, reading from parameter.h was successful.
 rho = (N1+N2)/(L*L)
@@ -69,5 +79,9 @@ with open("out.txt", "r") as fileO:
 # write gathered information to file
 ### TEMPORARY: WRITE 100 INSTEAD OF THE ACTUAL PROGRESS
 outfile = open("tmp", "w")
-outfile.write("{}\t{}\t{}\t{}\t{}".format(progress, L, lam, frames_per_tJ,snapgrid_num))
+outfile.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(progress, L, lam, frames_per_tJ,snapgrid_num,obs_dt, N1, N2, f2_epsgam,T))
 #outfile.write("{}\t{}\t{}\t{}\t{}".format(200, L, lam, frames_per_tJ,snapgrid_num))
+outfile.close()
+
+outfile2 = open("tmp_denstest", "w")
+outfile2.write("{} \t {} \t {}".format(gaussdens_width_x, gaussdens_width_y, N1))
