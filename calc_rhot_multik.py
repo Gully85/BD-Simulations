@@ -8,6 +8,7 @@ the filename are in units of dq=2pi/L
 """
 
 from scipy.optimize import curve_fit
+import numpy as np
 
 # ParProgress2tmp.py should be executed first. That will write 
 # files "tmp" and "tmp_denstest". Usually done by the "make obs" call
@@ -25,8 +26,14 @@ with open("tmp", "r") as f:
     T = float(words[9])
 
 rho = (N1+N2)/L**2
+dq = 2*np.pi/L
 
-import numpy as np
+# these are for the iso-Version: No direction in q-space, just absolute values of q=norm([qx,qy]), binned
+
+qmax = dq*(snapgrid_num//2)*np.sqrt(2.)
+qbin = 0.05
+q_numbins = int(qmax/qbin)+1
+
 from numpy import exp
 from calc_rhoIso import readGrid, ft_and_shift
 # readGrid takes filename and returns two 2dim-arrays of size (snapgrid_num x snapgrid_num), rho1 and rho2
@@ -43,14 +50,18 @@ rhomax = 4./np.pi
 def HDE(rho):
     return -1./(rhomax-rho) -rho/(rhomax-rho)**2 + 2*rho**2/(rhomax-rho)**3
 
-# Greens Function of the capillary interactions. In units of inverse sigma. Parameter is (k squared) = qx**2 + qy**2
+
 def W(k2):
+    """Greens function of the capillary interactions. In units of inverse sigma. 
+    Parameter is (k squared)=qx**2 + qy**2.
+    """
     return f2_epsgam/ (k2 + lambdac**-2)
 
 def exponential(t, N0, lam, sat):
     """Function to be fitted. Assuming the shape f(t) = N0*exp(lam*t) + sat, exponential decay towards saturation value sat"""
     return N0*exp(lam*t) + sat
 
+# local density in real space. Write to localDens/rho<t>.txt
 for obs in range(obs_anzahl):
     filename = "localDens/rho{}.txt".format(obs)
     # print(filename)
@@ -66,7 +77,49 @@ for obs in range(obs_anzahl):
     srhokt[:,:,obs] = srhok
     drhokt[:,:,obs] = drhok
     
-dq = 2 * np.pi / L
+# rhotiso is rho_{total} = rho1 + rho2, rhodiso is rho_{diff} = rho1-rho2
+for t_index in range(obs_anzahl):
+    print("isotropying static rho(k) ... Progress: {}/{}".format(t_index+1, obs_anzahl))
+    
+    outfile = open("rhok_iso/t{}.txt".format(t_index), "w")
+    outfile.write("# Format: q[sigma11] TAB (rho1+rho2)(q) TAB (rho1-rho2)(q) TAB rho1(q) TAB rho2(q) \n\n")
+    
+    rho1iso = 0.0
+    rho2iso = 0.0
+    rhotiso = 0.0
+    rhodiso = 0.0
+    # quick and sub-optimal construction with three nested loops. 
+    # Could make this faster with a lookup-array for the fixed 
+    # sequence. Outest loop is k-bin in the output functions rho(k), 
+    # then it loops over the full grid, but skipping directly to the 
+    # next iteration unless the point is in the correct bin.
+    for q_index in range(q_numbins):
+        q = qbin*q_index
+        # number of contributions to this bin
+        qbin_cont = 0
+        for qx_index in range(snapgrid_num):
+            qx = dq * (qx_index - snapgrid_num//2)
+            for qy_index in range(snapgrid_num):
+                qy = dq * (qy_index - snapgrid_num//2)
+                if (qx*qx + qy*qy) < qbin*(q_index-0.5) or (qx*qx + qy*qy) > qbin*(q_index+0.5):
+                    continue
+                # if this point is reached, the vector dq*(qx,qy) is in the current bin q_index
+                qbin_cont += 1
+                rho1iso += rho1kt[qx_index,qy_index,0]
+                rho2iso += rho2kt[qx_index,qy_index,0]
+                rhotiso += srhokt[qx_index,qy_index,0]
+                rhodiso += drhokt[qx_index,qy_index,0]
+                
+        # finished iterating over 2dim k-space grid. Normalize and write to output files.
+        rho1iso /= qbin_cont
+        rho2iso /= qbin_cont
+        rhotiso /= qbin_cont
+        rhodiso /= qbin_cont
+        outfile.write("{} \t {} \t {} \t {} \t {} \n".format(q, rhotiso, rhodiso, rho1iso, rho2iso))
+    
+    outfile.close()
+    
+print("done")
 
 # hold q (abs value) and fitted decay constants (sum and dif mode)
 fitresults = np.zeros((snapgrid_num*snapgrid_num, 3))
@@ -138,13 +191,11 @@ for i in range(snapgrid_num):
         #print("Diff dens Mode: predicted lam={}, fitted lam={}".format(lam_st, optimal[1]))
         #plt.show()
 
-#writeout = np.array()
+
 np.savetxt("fitresults.txt", fitresults, delimiter='\t', header="Results of exponential fits to sum (rho1+rho2)(k) and and dif (rho1-rho2)(k) density modes \nFormat: q lam_s lam_d, where lam_s is the decay constant of the sum mode and lam_d the one of the difference mode")
 
 # Produce binned version: Combine q's with similar abs value.
-qmax = dq*(snapgrid_num//2)*np.sqrt(2.)
-qbin = 0.05
-q_numbins = int(qmax/qbin)+1
+
 
 # 5 infos per qbin: |q|, lam_s avg, lam_s errorbar, lam_d avg, lam_d errorbar
 fitresults_binned = np.zeros((q_numbins, 5))
