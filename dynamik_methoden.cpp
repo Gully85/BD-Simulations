@@ -22,7 +22,7 @@ extern const int densGrid_Zellen, densGrid_Schema;
 extern const int N1, N2;
 extern const double obs_dt;
 extern const bool noWCA, noRNG, quickInit, restrictRadial, debugmode;
-
+extern const bool idgas_only;
 extern const int max_write_interval;
 
 /*
@@ -615,7 +615,8 @@ void RunZustand::RunDynamik::kapkraefte_init(){
 
 // berechnet WCA-Kraefte. Schreibt sie in F1_WCA[N1][2]
 void RunZustand::RunDynamik::berechne_WCA11(){
-	//using namespace dynamik_methoden;
+	
+    
 	int i; //Teilchen
 	vector<int>::iterator j; //wechselwirkendes Teilchen. Iteriert ueber die Nachbarliste von i's Zelle
 	double a2; //Abstandsquadrat der beiden wechselwirkenden Teilchen
@@ -631,6 +632,8 @@ void RunZustand::RunDynamik::berechne_WCA11(){
 		F1_WCA[i][1]=0.0;
 	}//for
 	
+	if(idgas_only) return;
+        
 	//Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
 	for(i=0; i<N1; i++){
 		int ic = r1_git[i][0];
@@ -713,6 +716,8 @@ void RunZustand::RunDynamik::berechne_WCA11_debug(TimestepInfo &info){
         F1_WCA[i][0]=0.0;
         F1_WCA[i][1]=0.0;
     }//for
+    
+    if(idgas_only) return;
     
     //Schleife über Teilchen
     for(i=0; i<N1; i++){
@@ -799,6 +804,8 @@ void RunZustand::RunDynamik::berechne_WCA22(){
 		F2_WCA[i][0]=0.0;
 		F2_WCA[i][1]=0.0;
 	}//for
+	
+	if(idgas_only) return;
 	
 	//Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
 	for(i=0; i<N2; i++){
@@ -888,6 +895,8 @@ void RunZustand::RunDynamik::berechne_WCA22_debug(TimestepInfo &info){
             F2_WCA[i][1]=0.0;
     }//for
     
+    if(idgas_only) return;
+    
     //Schleife ueber Teilchen. Fuer jedes, iteriere durch seine Nachbarn und addiere Kraefte.
     for(i=0; i<N2; i++){
             int ic = r2_git[i][0];
@@ -962,7 +971,8 @@ void RunZustand::RunDynamik::berechne_WCA22_debug(TimestepInfo &info){
 
 //berechne WCA-Kräfte aus 12-Wechselwirkung, addiere sie in F1_WCA[N1][2] und F2_WCA[N2][2] 
 void RunZustand::RunDynamik::addiere_WCA12(){
-	//using namespace dynamik_methoden;
+	
+        if(idgas_only) return;
 	
 	int i,j2; // i läuft über Typ 1, j läuft über Typ 2
 	vector<int>::iterator j; //läuft über die Typ2-Nachbarliste
@@ -1053,6 +1063,8 @@ void RunZustand::RunDynamik::addiere_WCA12_debug(TimestepInfo &info){
     vector<int>::iterator j; //läuft über die Typ2-Nachbarliste
     double a2; //abstandsquadrat
     int ic, jc; //Indices der Zelle, wo das Typ1-Teilchen drin ist
+    
+    if(idgas_only) return;
     
     for(i=0; i<N1; i++){
             ic = r1_git[i][0];
@@ -1167,7 +1179,18 @@ void RunZustand::RunDynamik::addiere_WCA12_debug(TimestepInfo &info){
 //berechnet Kapillarkraefte (mittels Fouriertransformation), schreibt sie in Fkap. 
 void RunZustand::RunDynamik::berechne_kapkraefte(){
 	
-	//using namespace dynamik_methoden;
+        if(idgas_only){
+            for(int i=0; i<N1; i++){
+                F1kap[i][0] = 0.0;
+                F1kap[i][1] = 0.0;
+            }
+            for(int i=0; i<N2; i++){
+                F2kap[i][0] = 0.0;
+                F2kap[i][1] = 0.0;
+            }
+            return;
+        }//if idgas_only
+    
 	int j,l;
 	double x,y;
 
@@ -1213,6 +1236,18 @@ void RunZustand::RunDynamik::berechne_kapkraefte(){
 void RunZustand::RunDynamik::berechne_kapkraefte_debug(TimestepInfo &info){
     int j,l;
     double x,y;
+    
+    if(idgas_only){
+        for(int i=0; i<N1; i++){
+            F1kap[i][0] = 0.0;
+            F1kap[i][1] = 0.0;
+        }
+        for(int i=0; i<N2; i++){
+            F2kap[i][0] = 0.0;
+            F2kap[i][1] = 0.0;
+        }
+        return;
+    }//if idgas_only
     
 /// Density-Gridding
     switch(densGrid_Schema){

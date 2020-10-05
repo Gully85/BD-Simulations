@@ -61,7 +61,8 @@ const double eps12_11 = 1.0;
 //const double f2_f1 = 1.0/sigma11_22; //gleiche Dichten und Oberflächen
 const double f2_f1 = - 1.0; //insgesamt gleichviel Attraktion wie Repulsion
 
-
+// nur ideales Gas. Weder Kapillar- noch WCA-Kräfte
+const bool idgas_only = true;
 //Warnung ausgeben, wenn WCA-Kräfte auftreten
 const bool noWCA = false;
 //keine Zufallskräfte, dh keine Diffusion
