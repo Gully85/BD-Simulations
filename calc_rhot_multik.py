@@ -105,10 +105,10 @@ for t_index in range(obs_anzahl):
                     continue
                 # if this point is reached, the vector dq*(qx,qy) is in the current bin q_index
                 qbin_cont += 1
-                rho1iso += rho1kt[qx_index,qy_index,0]
-                rho2iso += rho2kt[qx_index,qy_index,0]
-                rhotiso += srhokt[qx_index,qy_index,0]
-                rhodiso += drhokt[qx_index,qy_index,0]
+                rho1iso += rho1kt[qx_index,qy_index,t_index]
+                rho2iso += rho2kt[qx_index,qy_index,t_index]
+                rhotiso += srhokt[qx_index,qy_index,t_index]
+                rhodiso += drhokt[qx_index,qy_index,t_index]
                 
         # finished iterating over 2dim k-space grid. Normalize and write to output files.
         rho1iso /= qbin_cont
@@ -118,8 +118,6 @@ for t_index in range(obs_anzahl):
         outfile.write("{} \t {} \t {} \t {} \t {} \n".format(q, rhotiso, rhodiso, rho1iso, rho2iso))
     
     outfile.close()
-    
-print("done")
 
 # hold q (abs value) and fitted decay constants (sum and dif mode)
 fitresults = np.zeros((snapgrid_num*snapgrid_num, 3))
@@ -130,7 +128,7 @@ successful_fits = 0
 for i in range(snapgrid_num):
     qx = dq*(i - snapgrid_num//2)
     if i%10 == 0:
-        print("Progress: {}/{}. Successful fits: {}/{}".format(i,snapgrid_num, successful_fits, (successful_fits+failed_fits)))
+        print("Fitting Progress: {}/{}. Successful fits: {}/{}".format(i,snapgrid_num, successful_fits, (successful_fits+failed_fits)))
     for j in range(snapgrid_num):
         qy = dq*(j - snapgrid_num//2)
         
@@ -157,6 +155,8 @@ for i in range(snapgrid_num):
         
         try:
             optimal, covar = curve_fit(exponential, t, srt, p0=(N0_st, lam_st, saturation_st))
+            if any(optimal > 1.0e6) or any(optimal < -1.0e6):
+                raise RuntimeError("")
             fitresults[index,1] = optimal[1]
             successful_fits = successful_fits+1
         except RuntimeError:
@@ -178,6 +178,8 @@ for i in range(snapgrid_num):
         
         try:
             optimal, covar = curve_fit(exponential, t, drt, p0=(N0_st, lam_st, saturation_st))
+            if any(optimal > 1.0e6) or any(optimal < -1.0e6):
+                raise RuntimeError("")
             fitresults[index,2] = optimal[1]
             successful_fits=successful_fits+1
         except RuntimeError:
@@ -200,7 +202,8 @@ np.savetxt("fitresults.txt", fitresults, delimiter='\t', header="Results of expo
 # 5 infos per qbin: |q|, lam_s avg, lam_s errorbar, lam_d avg, lam_d errorbar
 fitresults_binned = np.zeros((q_numbins, 5))
 for qi in range(q_numbins):
-    print("Binning Progress: {}/{}".format(qi, q_numbins))
+    if (qi % 10 == 0):
+        print("Binning Progress: {}/{}".format(qi, q_numbins))
     # current qbin: (qi-0.5)*qbin < q < (qi+0.5)*qbin
     fitresults_binned[qi,0] = qi*qbin
     

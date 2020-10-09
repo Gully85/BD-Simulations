@@ -94,6 +94,7 @@ int main(){
 	vector<double>** rho2FFTW_re = NULL;
 	vector<double>** rho2FFTW_im = NULL;
 	
+        
 	{ //reserviere Speicher für diese Felder
 	g11 = new vector<double>*[runs];
 	g12 = new vector<double>*[runs];
@@ -124,7 +125,7 @@ int main(){
 
 //if(maxThreads != 0)
 //    omp_set_num_threads(maxThreads);
-
+//cout << "z127" << endl << flush;
 //#pragma omp parallel for
 for(int run=0; run<runs; run++){
     
@@ -263,10 +264,11 @@ for(int run=0; run<runs; run++){
 		}//while obs-Punkt noch nicht erreicht
 		*/
 		theRun.zeitschritte_bis_obs(last_write);
+                //cout << "z267" << endl << flush;
                 if(obs_nr > 1){
                     int numSteps = theRun.schritte_seit_obs;
                     time_t now = time(0);
-                    double steps_per_second = numSteps / (now-last_write);
+                    double steps_per_second = ( now != last_write) ? numSteps / (now-last_write) : 9999.0;
                     
                     cout << "\nRun " << run << ": recording obs-Point " << theRun.obs_nr+1 << " / " << obs_anzahl  << ".\n";
                     cout << "Run " << run << ": " << numSteps << " steps since CP. Avg dt: " << obs_dt/numSteps << ". Performance: " << steps_per_second <<" steps/s.\n";
@@ -281,6 +283,7 @@ for(int run=0; run<runs; run++){
 		if(auswerten_animation && run==0) pos_schreiben(obs_nr*obs_dt, pos1, pos2);
 		*/
 		theRun.obs_point(obs_nr);
+                //cout << "z286" << endl << flush;
                 last_write = time(0);
 	}//for obs_nr
 	/*

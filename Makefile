@@ -1,5 +1,6 @@
 # Variablen
-FLAGS_IMMER = -I$$FFTW_INC_DIR -L$$FFTW_LIB_DIR -lfftw3 -lm -std=c++0x -fopenmp -Wno-div-by-zero
+FLAGS_IMMER = -I$$FFTW_INC_DIR -L$$FFTW_LIB_DIR -lfftw3 -lm -std=c++0x -fopenmp 
+#-Wno-div-by-zero
 FLAGS_DEBUG = -O0 -g
 FLAGS_NORMAL = -O3
 
@@ -23,8 +24,9 @@ obs : main_auswertung.cpp parameter.h tmp
 	g++ main_auswertung.cpp -O3 -o auswertung_binary
 	mkdir -p localDens
 	./auswertung_binary
-	#mkdir -p rhok_iso
-	#python3 calc_rhoIso.py
+	mkdir -p rhok_iso
+	mkdir -p rhok_timeEv
+	python3 calc_rhot_multik.py
 
 snapshots: plot_animation.plt tmp
 	gnuplot plot_animation.plt 
@@ -34,9 +36,9 @@ auswertung: main_auswertung.cpp parameter.h ParProgress2tmp.py plot_animation.pl
 	make obs
 	echo "Calculation of g(r) complete. Rendering snapshots..."
 	make snapshots
-	echo "Rendering of snapshots complete. Fitting exponential to all rho(k)"
-	mkdir -p rhok_iso
-	python3 calc_rhot_multik.py
+	#echo "Rendering of snapshots complete. Fitting exponential to all rho(k)"
+	#mkdir -p rhok_iso
+	#python3 calc_rhot_multik.py
 
 
 simobs: $(FILES) main_auswertung.cpp parameter.h

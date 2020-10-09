@@ -58,7 +58,10 @@ if any(np.array([L,obs_dt,N1,N2,f2_epsgam,snapgrid_num, T]) < 0.0):
 
 # if this point is reached, reading from parameter.h was successful.
 rho = (N1+N2)/(L*L)
-tJ = 1./(rho * f2_epsgam)
+if f2_epsgam == 0.:
+    tJ = -1.
+else:
+    tJ = 1./(rho * f2_epsgam)
 print(rho, tJ)
 frames_per_tJ = tJ / obs_dt
 
