@@ -11,8 +11,8 @@ using std::string;
 /// Parameter, die geaendert werden duerfen
 
 // Teilchenzahl
-const int N1 = 1000; //darf nicht Null sein!
-const int N2 = 1000;
+const int N1 = 2000; //darf nicht Null sein!
+const int N2 = 2000;
 
 // Groesse der Simulationsbox (je Raumrichtung) in Einheiten von sigma
 const double L = 300.0; 
@@ -29,6 +29,7 @@ const double lambda_kapillar = 25.0;
 
 // Vorfaktor der Kapillarkraft. Ist f^2/(eps gamma).
 const double kapillar_vorfaktor = 1.111111111; //0.89 ist V0/kT im EPJE-Paper. Es gilt kap_vorfaktor=2pi*V0*T.
+//const double kapillar_vorfaktor = 0.0;
 
 
 // Temperatur, in Einheiten kT/eps
@@ -62,7 +63,7 @@ const double eps12_11 = 1.0;
 const double f2_f1 = - 1.0; //insgesamt gleichviel Attraktion wie Repulsion
 
 // nur ideales Gas. Weder Kapillar- noch WCA-Kräfte
-const bool idgas_only = true;
+const bool idgas_only = false;
 //Warnung ausgeben, wenn WCA-Kräfte auftreten
 const bool noWCA = false;
 //keine Zufallskräfte, dh keine Diffusion
@@ -157,7 +158,7 @@ const bool auswerten_abstand = false; //Mittelwert des Abstands Typ2-Teilchen vo
 
 // snapshot-grid: Crude value of lattice constant. The actual lattice constant will be chosen 
 // close to this value such that L is a multiple of this. In units of sigma11
-const double snapgrid_crude = 2.0;
+const double snapgrid_crude = 0.5;
 
 // for rhok test: Width of the gaussian distribution that write_gaussdens should produce
 const double gaussdens_width_x = 0.1*L;
@@ -170,7 +171,7 @@ const double gaussdens_width_y = 0.02*L;
 const double zweihoch1_6 = pow(2.0, 1.0/6.0);
 
 // snapshot-grid: number of lattice cells (per dimension)
-const int snapgrid_num = (int) (L/snapgrid_crude + 0.5);
+const int snapgrid_num = 2 * (int) (L/(2*snapgrid_crude) + 0.5);
 //snapshot-grid: size of each lattice cell
 const double snapgrid_width = L / snapgrid_num;
 
