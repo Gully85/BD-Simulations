@@ -42,7 +42,7 @@ with open("parameter.h" ,"r") as fileP:
                 f2_epsgam = float(val)
             elif "snapgrid_crude" == var:
                 snapgrid_crude = float(val)
-                snapgrid_num = (int) (L/snapgrid_crude + 0.5)
+                snapgrid_num = 2*(int) (L/(2*snapgrid_crude) + 0.5)
             elif "gaussdens_width_x" == var:
                 val_ohne_L = val.split("*")[0]
                 gaussdens_width_x = float(val_ohne_L) * L
